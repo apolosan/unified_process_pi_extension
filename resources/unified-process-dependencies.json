@@ -8,7 +8,28 @@
     {
       "id": "design-patterns",
       "level": "recommended",
-      "notes": "Bring your own server exposing design_patterns_* tools. A placeholder is included in unified-process.mcp.example.json."
+      "source": "https://github.com/apolosan/design_patterns_mcp",
+      "install": [
+        "git clone https://github.com/apolosan/design_patterns_mcp.git .up-tools/design_patterns_mcp",
+        "cd .up-tools/design_patterns_mcp && bun install && bun run db:setup"
+      ],
+      "config": {
+        "command": "node",
+        "args": [
+          "dist/src/mcp-server.js"
+        ],
+        "cwd": ".up-tools/design_patterns_mcp",
+        "env": {
+          "LOG_LEVEL": "info",
+          "DATABASE_PATH": "./data/design-patterns.db",
+          "ENABLE_HYBRID_SEARCH": "true",
+          "ENABLE_GRAPH_AUGMENTATION": "true",
+          "EMBEDDING_COMPRESSION": "true",
+          "ENABLE_FUZZY_LOGIC": "true",
+          "ENABLE_TELEMETRY": "true",
+          "ENABLE_MULTI_LEVEL_CACHE": "true"
+        }
+      }
     },
     {
       "id": "shadcn",
@@ -37,7 +58,10 @@
     "npx",
     "mmdc",
     "docker",
-    "docker-compose"
+    "docker-compose",
+    "git",
+    "bun",
+    "node"
   ],
   "conditionalCliTools": [
     "jest",

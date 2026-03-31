@@ -44,15 +44,28 @@ function commandExists(dep) {
   return result.status === 0;
 }
 
+function getDesignPatternsInstallDir() {
+  return path.join(installPrefix, 'design_patterns_mcp');
+}
+
 function renderMcpTemplate() {
   return {
     mcpServers: {
       'design-patterns': {
-        command: '<configure-your-design-patterns-server-command>',
-        args: ['<server-args-if-needed>'],
+        command: 'node',
+        args: ['dist/src/mcp-server.js'],
+        cwd: getDesignPatternsInstallDir(),
         directTools: true,
-        notes:
-          'Provide any public/private design-patterns MCP server that exposes the design_patterns_* tools expected by the skills.',
+        env: {
+          LOG_LEVEL: 'info',
+          DATABASE_PATH: './data/design-patterns.db',
+          ENABLE_HYBRID_SEARCH: 'true',
+          ENABLE_GRAPH_AUGMENTATION: 'true',
+          EMBEDDING_COMPRESSION: 'true',
+          ENABLE_FUZZY_LOGIC: 'true',
+          ENABLE_TELEMETRY: 'true',
+          ENABLE_MULTI_LEVEL_CACHE: 'true'
+        }
       },
       shadcn: {
         command: 'npx',
@@ -117,6 +130,42 @@ function pipInstall(packages) {
   }
 }
 
+function installDesignPatternsServer() {
+  const dep = catalog.mcpServers.find((item) => item.id === 'design-patterns');
+  if (!dep) return;
+
+  const installDir = getDesignPatternsInstallDir();
+  mkdirSync(installPrefix, { recursive: true });
+
+  if (!commandExists({ command: 'git', id: 'git' })) {
+    console.log('- design-patterns: skipped (git is missing)');
+    return;
+  }
+  if (!commandExists({ command: 'bun', id: 'bun' })) {
+    console.log('- design-patterns: skipped (bun is missing)');
+    return;
+  }
+
+  const existsResult = run('bash', ['-lc', `[ -d ${JSON.stringify(installDir)} ]`]);
+  if (existsResult.status === 0) {
+    console.log(`- design-patterns: updating ${installDir}`);
+    const pull = run('git', ['-C', installDir, 'pull', '--ff-only'], { stdio: 'inherit' });
+    if (pull.status !== 0) process.exit(pull.status ?? 1);
+  } else {
+    console.log(`- design-patterns: cloning ${dep.install.repo} -> ${installDir}`);
+    const clone = run('git', ['clone', dep.install.repo, installDir], { stdio: 'inherit' });
+    if (clone.status !== 0) process.exit(clone.status ?? 1);
+  }
+
+  console.log('- design-patterns: bun install');
+  let result = run('bun', ['install'], { cwd: installDir, stdio: 'inherit' });
+  if (result.status !== 0) process.exit(result.status ?? 1);
+
+  console.log('- design-patterns: bun run db:setup');
+  result = run('bun', ['run', 'db:setup'], { cwd: installDir, stdio: 'inherit' });
+  if (result.status !== 0) process.exit(result.status ?? 1);
+}
+
 function installKnown() {
   const npmPackages = [];
   const pipPackages = [];
@@ -130,6 +179,7 @@ function installKnown() {
   }
 
   console.log('Installing known auto-installable dependencies...');
+  installDesignPatternsServer();
   if (npmPackages.length) {
     console.log(`- npm packages -> ${npmPackages.join(', ')}`);
     npmInstall(npmPackages);
@@ -144,11 +194,9 @@ function installKnown() {
 
   console.log('\nDone.');
   console.log(`- Local npm tools: ${installPrefix}`);
+  console.log(`- Design Patterns MCP: ${getDesignPatternsInstallDir()}`);
   console.log(`- MCP template:    ${outputPath}`);
   console.log('\nManual follow-up still required for:');
-  for (const dep of catalog.mcpServers.filter((item) => item.install.strategy === 'manual')) {
-    console.log(`- ${dep.id}: ${dep.install.notes}`);
-  }
   for (const dep of catalog.cliTools.filter((item) => item.install.strategy === 'system')) {
     console.log(`- ${dep.id}: install via your OS package manager`);
   }

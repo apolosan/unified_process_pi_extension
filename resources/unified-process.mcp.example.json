@@ -1,12 +1,22 @@
 {
   "mcpServers": {
     "design-patterns": {
-      "command": "<configure-your-design-patterns-server-command>",
+      "command": "node",
       "args": [
-        "<server-args-if-needed>"
+        "dist/src/mcp-server.js"
       ],
+      "cwd": "/absolute/path/to/.up-tools/design_patterns_mcp",
       "directTools": true,
-      "notes": "Provide any public/private MCP server that exposes the design_patterns_* tools expected by the skills."
+      "env": {
+        "LOG_LEVEL": "info",
+        "DATABASE_PATH": "./data/design-patterns.db",
+        "ENABLE_HYBRID_SEARCH": "true",
+        "ENABLE_GRAPH_AUGMENTATION": "true",
+        "EMBEDDING_COMPRESSION": "true",
+        "ENABLE_FUZZY_LOGIC": "true",
+        "ENABLE_TELEMETRY": "true",
+        "ENABLE_MULTI_LEVEL_CACHE": "true"
+      }
     },
     "shadcn": {
       "command": "npx",

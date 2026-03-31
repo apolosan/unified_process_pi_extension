@@ -87,6 +87,45 @@ Required/recommended MCPs referenced by the skills:
 - `radix-mcp-server`
 - `flyonui`
 
+#### Design Patterns MCP (concrete source + config)
+
+The `design-patterns` MCP expected by `up-design-patterns` is the public repository:
+- `https://github.com/apolosan/design_patterns_mcp`
+
+Manual install:
+
+```bash
+git clone https://github.com/apolosan/design_patterns_mcp.git .up-tools/design_patterns_mcp
+cd .up-tools/design_patterns_mcp
+bun install
+bun run db:setup
+```
+
+Recommended MCP config:
+
+```json
+{
+  "mcpServers": {
+    "design-patterns": {
+      "command": "node",
+      "args": ["dist/src/mcp-server.js"],
+      "cwd": "/absolute/path/to/.up-tools/design_patterns_mcp",
+      "directTools": true,
+      "env": {
+        "LOG_LEVEL": "info",
+        "DATABASE_PATH": "./data/design-patterns.db",
+        "ENABLE_HYBRID_SEARCH": "true",
+        "ENABLE_GRAPH_AUGMENTATION": "true",
+        "EMBEDDING_COMPRESSION": "true",
+        "ENABLE_FUZZY_LOGIC": "true",
+        "ENABLE_TELEMETRY": "true",
+        "ENABLE_MULTI_LEVEL_CACHE": "true"
+      }
+    }
+  }
+}
+```
+
 Example MCP configuration template:
 - `resources/unified-process.mcp.example.json`
 
@@ -141,7 +180,7 @@ npm run check
 npm run deps:install
 ```
 
-This installs the auto-installable npm-based tooling locally under `.up-tools/` and regenerates the MCP template.
+This now also bootstraps the public `design_patterns_mcp` server automatically when `git` and `bun` are available, then regenerates the MCP template.
 
 To also include supported conditional npm/pip-based tools:
 
@@ -160,8 +199,8 @@ npm run deps:mcp-template
 Not every dependency can be installed safely or universally in a single cross-platform script.
 
 Because of that, the automation is intentionally split into:
-- **auto-installable** dependencies: portable npm/pip packages with well-defined install sources
-- **system/manual** dependencies: tools such as Docker or bring-your-own MCP servers that depend on OS, credentials, or private infrastructure
+- **auto-installable** dependencies: portable npm/pip packages plus the git+bun bootstrap for `design_patterns_mcp`
+- **system/manual** dependencies: tools such as Docker or OS-level/security-sensitive tooling that depend on platform, credentials, or private infrastructure
 
 This keeps the public package safe, reproducible, and aligned with pi package best practices.
 

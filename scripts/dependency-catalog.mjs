@@ -6,11 +6,12 @@ export const catalog = {
       id: 'design-patterns',
       level: 'recommended',
       description:
-        'Required by the up-design-patterns skill. Must expose the design_patterns_* tools used by the package.',
+        'Required by the up-design-patterns skill. Installs from https://github.com/apolosan/design_patterns_mcp and must expose the design_patterns_* tools used by the package.',
       install: {
-        strategy: 'manual',
-        notes:
-          'Bring your own MCP server and register it under the name "design-patterns". This repository ships a template placeholder only because a public install source is project-dependent.',
+        strategy: 'git-bun-build',
+        repo: 'https://github.com/apolosan/design_patterns_mcp.git',
+        directoryName: 'design_patterns_mcp',
+        buildSteps: ['bun install', 'bun run db:setup'],
       },
       scanPatterns: ['design_patterns_', 'design-patterns MCP server'],
     },
