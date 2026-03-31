@@ -1,6 +1,6 @@
 {
   "name": "@apolosan/unified-process",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Pi package that bundles the Object-Oriented Unified Process extension and skills for the pi coding agent.",
   "type": "module",
   "license": "MIT",
@@ -36,8 +36,8 @@
     "LICENSE"
   ],
   "bin": {
-    "up-deps": "./scripts/setup-dependencies.mjs",
-    "up-scan-deps": "./scripts/scan-skill-dependencies.mjs"
+    "up-deps": "scripts/setup-dependencies.mjs",
+    "up-scan-deps": "scripts/scan-skill-dependencies.mjs"
   },
   "scripts": {
     "check": "node ./scripts/scan-skill-dependencies.mjs --verify",
