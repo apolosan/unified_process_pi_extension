@@ -109,7 +109,7 @@ Recommended MCP config:
     "design-patterns": {
       "command": "node",
       "args": ["dist/src/mcp-server.js"],
-      "cwd": "/absolute/path/to/.up-tools/design_patterns_mcp",
+      "cwd": "<INSTALL_PREFIX>/design_patterns_mcp",
       "directTools": true,
       "env": {
         "LOG_LEVEL": "info",

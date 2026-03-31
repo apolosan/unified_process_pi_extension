@@ -54,7 +54,7 @@ function renderMcpTemplate() {
       'design-patterns': {
         command: 'node',
         args: ['dist/src/mcp-server.js'],
-        cwd: getDesignPatternsInstallDir(),
+        cwd: '<INSTALL_PREFIX>/design_patterns_mcp',
         directTools: true,
         env: {
           LOG_LEVEL: 'info',
