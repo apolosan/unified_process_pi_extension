@@ -4,6 +4,9 @@
   "description": "Pi package that bundles the Object-Oriented Unified Process extension and skills for the pi coding agent.",
   "type": "module",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "keywords": [
     "pi-package",
     "pi",
