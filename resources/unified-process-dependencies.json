@@ -1,0 +1,77 @@
+{
+  "packageName": "@apolosan/unified-process",
+  "install": {
+    "preferred": "pi install npm:@apolosan/unified-process",
+    "alternative": "pi install git:github.com/apolosan/unified_process_pi_extension"
+  },
+  "mcpServers": [
+    {
+      "id": "design-patterns",
+      "level": "recommended",
+      "notes": "Bring your own server exposing design_patterns_* tools. A placeholder is included in unified-process.mcp.example.json."
+    },
+    {
+      "id": "shadcn",
+      "level": "recommended",
+      "command": "npx -y shadcn@latest mcp"
+    },
+    {
+      "id": "radix-mcp-server",
+      "level": "recommended",
+      "command": "npx -y @gianpieropuleo/radix-mcp-server@latest"
+    },
+    {
+      "id": "flyonui",
+      "level": "recommended",
+      "command": "npx -y flyonui-mcp"
+    }
+  ],
+  "companionSkills": [
+    "context7",
+    "brave-search",
+    "web-search",
+    "web-fetch"
+  ],
+  "coreCliTools": [
+    "npm",
+    "npx",
+    "mmdc",
+    "docker",
+    "docker-compose"
+  ],
+  "conditionalCliTools": [
+    "jest",
+    "pytest",
+    "playwright",
+    "cypress",
+    "testcontainers",
+    "wiremock",
+    "pact",
+    "storybook",
+    "selenium",
+    "appium",
+    "detox",
+    "k6",
+    "locust",
+    "jmeter",
+    "gatling",
+    "owasp-zap",
+    "semgrep",
+    "sonarqube",
+    "codeql",
+    "snyk",
+    "trivy",
+    "axe-core",
+    "lighthouse",
+    "pa11y",
+    "stryker",
+    "mutmut",
+    "pitest",
+    "fast-check",
+    "hypothesis",
+    "quickcheck",
+    "libfuzzer",
+    "afl++",
+    "oss-fuzz"
+  ]
+}

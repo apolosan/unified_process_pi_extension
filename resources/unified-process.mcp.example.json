@@ -1,0 +1,37 @@
+{
+  "mcpServers": {
+    "design-patterns": {
+      "command": "<configure-your-design-patterns-server-command>",
+      "args": [
+        "<server-args-if-needed>"
+      ],
+      "directTools": true,
+      "notes": "Provide any public/private MCP server that exposes the design_patterns_* tools expected by the skills."
+    },
+    "shadcn": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "shadcn@latest",
+        "mcp"
+      ],
+      "directTools": true
+    },
+    "radix-mcp-server": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@gianpieropuleo/radix-mcp-server@latest"
+      ],
+      "directTools": true
+    },
+    "flyonui": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "flyonui-mcp"
+      ],
+      "directTools": true
+    }
+  }
+}

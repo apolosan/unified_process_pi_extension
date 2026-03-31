@@ -1,0 +1,58 @@
+{
+  "name": "@apolosan/unified-process",
+  "version": "1.0.0",
+  "description": "Pi package that bundles the Object-Oriented Unified Process extension and skills for the pi coding agent.",
+  "type": "module",
+  "license": "MIT",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-extension",
+    "pi-skills",
+    "unified-process",
+    "object-oriented",
+    "software-engineering"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/apolosan/unified_process_pi_extension.git"
+  },
+  "homepage": "https://github.com/apolosan/unified_process_pi_extension#readme",
+  "bugs": {
+    "url": "https://github.com/apolosan/unified_process_pi_extension/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "extensions/",
+    "skills/",
+    "resources/",
+    "scripts/",
+    "README.md",
+    "LICENSE"
+  ],
+  "bin": {
+    "up-deps": "./scripts/setup-dependencies.mjs",
+    "up-scan-deps": "./scripts/scan-skill-dependencies.mjs"
+  },
+  "scripts": {
+    "check": "node ./scripts/scan-skill-dependencies.mjs --verify",
+    "deps:scan": "node ./scripts/scan-skill-dependencies.mjs",
+    "deps:check": "node ./scripts/setup-dependencies.mjs check",
+    "deps:install": "node ./scripts/setup-dependencies.mjs install-known",
+    "deps:mcp-template": "node ./scripts/setup-dependencies.mjs emit-mcp-template"
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*",
+    "@sinclair/typebox": "*"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions/unified-process"
+    ],
+    "skills": [
+      "./skills"
+    ]
+  }
+}

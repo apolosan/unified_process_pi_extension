@@ -1,0 +1,10 @@
+.pi/
+.aim/
+.vector-memory/
+data/
+docs/
+papers/
+node_modules/
+.up-tools/
+.git/
+.gitignore

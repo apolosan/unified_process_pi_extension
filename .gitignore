@@ -1,0 +1,19 @@
+# Local-only pi/project state
+.pi/
+.aim/
+.vector-memory/
+data/
+docs/
+papers/
+
+# Node / package manager
+node_modules/
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+.up-tools/
+
+# OS / editor
+.DS_Store
+*.swp
+*.swo
