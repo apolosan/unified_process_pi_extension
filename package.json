@@ -1,6 +1,6 @@
 {
   "name": "@apolosan/unified-process",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Pi package that bundles the Object-Oriented Unified Process extension and skills for the pi coding agent.",
   "type": "module",
   "license": "MIT",

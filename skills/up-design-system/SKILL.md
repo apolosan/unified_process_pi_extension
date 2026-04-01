@@ -231,708 +231,221 @@ Evaluate each candidate design system:
 
 ---
 
-## Step 5: Design Token Foundation (Complete Visual Standard)
 
-> **Non-negotiable rule:** After this step is complete, **ZERO hardcoded values** may appear in any generated component. Every color, size, spacing, radius, shadow, duration, and z-index MUST reference a token. This is the contract that makes the generated system maintainable.
+## Step 5: Visual Token Architecture (Creative, Not Prescriptive)
 
-> **Output of this step:** 4 files saved before any component is generated:
-> - `docs/up/13-ui-code/tokens/tokens.css` — CSS custom properties (the source of truth)
-> - `docs/up/13-ui-code/tokens/tokens.ts` — TypeScript exports for type-safe usage
-> - `docs/up/13-ui-code/tokens/tokens.json` — Design tool handoff format
-> - `docs/up/13-ui-code/STYLE-GUIDE.md` — Usage documentation for developers
+> **Philosophy:** Tokens are the DNA of the visual system — they MUST be **discovered and crafted** for THIS specific project, not copy-pasted from a generic template. The agent uses MCP tools, domain signals, and the UI/UX Directives to create a token set that is unique, coherent, and beautiful.
+>
+> **Anti-pattern:** DO NOT mechanically reproduce the same token values for every project. A healthcare dashboard and a consumer app should have radically different token personalities.
 
----
+### How to Create Tokens (Process, Not Template)
 
-### Layer 1: Primitive Tokens (Raw Values — Never Use Directly in Components)
+```
+DISCOVER → CURATE → COMPOSE → VALIDATE
 
-Primitive tokens are the **raw material** of the design system. They are never used directly in components — only through semantic aliases.
+1. DISCOVER — Use MCP tools to extract raw material:
+   radix_mcp_server_colors_list_scales()     → available color scales
+   radix_mcp_server_colors_get_scale({…})  → extract specific scales
+   shadcn_view_items_in_registries()          → see how existing themes define tokens
+   /skill:context7                          → fetch latest Tailwind/Radix token docs
 
-#### 1.1 Color Primitives
+2. CURATE — Select and adapt based on domain signals:
+   → Domain from 01-vision.md (healthcare? fintech? social?)
+   → Aesthetic preferences from Step 1 analysis
+   → Directive 2 dark palette anchors (non-negotiable)
+   → Directive 5 font choices (non-negotiable)
+   → Brand colors if mentioned in any artifact
 
-Use `radix_mcp_server_colors_get_scale()` to extract canonical color scales:
+3. COMPOSE — Build the token architecture:
+   → Layer 1: Primitives (raw values from MCP tools)
+   → Layer 2: Semantic aliases (purpose-based, project-specific)
+   → Layer 3: Component tokens (per component variant/state)
+   → Layer 4: State patterns (behavioral, not value-based)
 
-```typescript
-// Extract color scales from Radix (canonical, accessible scales):
-radix_mcp_server_colors_list_scales()  // see all available scales
-radix_mcp_server_colors_get_scale({ scaleName: 'blue' })   // primary candidate
-radix_mcp_server_colors_get_scale({ scaleName: 'slate' })  // neutral/gray candidate
-radix_mcp_server_colors_get_scale({ scaleName: 'red' })    // error candidate
-radix_mcp_server_colors_get_scale({ scaleName: 'green' })  // success candidate
-radix_mcp_server_colors_get_scale({ scaleName: 'amber' })  // warning candidate
+4. VALIDATE — WCAG contrast + visual quality gate:
+   → All text/background combos pass contrast ratios
+   → Dark mode palette follows Directive 2 anchors
+   → Fonts follow Directive 5 approved list
+   → Visual Quality Gate (Directive 6) passes
 ```
 
-For each color scale, define 12 steps (Radix system) or 11 steps (Tailwind system):
+### Mandatory Anchors (Non-Negotiable Across All Projects)
 
-```css
-/* Color Primitives — NEVER used directly in components */
---prim-[name]-1:  [hex];  /* Lightest background */
---prim-[name]-2:  [hex];  /* Subtle background */
---prim-[name]-3:  [hex];  /* Interactive bg (hover) */
---prim-[name]-4:  [hex];  /* Interactive bg (active) */
---prim-[name]-5:  [hex];  /* Interactive lines/borders */
---prim-[name]-6:  [hex];  /* Subtle borders */
---prim-[name]-7:  [hex];  /* Default borders */
---prim-[name]-8:  [hex];  /* Solid colors — interactive focus */
---prim-[name]-9:  [hex];  /* Solid backgrounds — primary */
---prim-[name]-10: [hex];  /* Solid backgrounds — hover */
---prim-[name]-11: [hex];  /* Low-contrast text */
---prim-[name]-12: [hex];  /* High-contrast text */
+#### Dark Mode Base Palette (Directive 2)
 
-/* Alpha variants (for overlays and glass effects) */
---prim-[name]-a1 through --prim-[name]-a12
+```
+These values are FIXED — they define the dark mode personality:
+
+  Backgrounds:  #030303 → #050505 → #0a0a0a → #111111 → #1a1a1a
+                 (deepest)    (deep)      (surface)   (elevated)  (overlay)
+
+  Borders:      rgba(255,255,255, 0.05) → 0.10 → 0.20 → 0.30
+                 (subtle)               (default)     (strong)  (focus)
+
+  Glows:        0 0 20px rgba(primary, 0.15)   — card hover
+                0 0 40px rgba(primary, 0.08)   — section emphasis
+                0 0 60px rgba(accent, 0.12)    — hero/CTA
+
+RULE: Dark mode is designed FIRST. Light mode is derived from it.
 ```
 
-Required scales:
-- **Primary brand** (choose the most fitting: blue, violet, indigo, emerald, etc.)
-- **Neutral** (slate, gray, zinc, or stone — for text and backgrounds)
-- **Error** (red, rose, or tomato)
-- **Success** (green, teal, or grass)
-- **Warning** (amber, yellow, or orange)
-- **Info** (sky, cyan, or blue)
-- **Pure black and white** (#000000, #ffffff)
+#### Typography (Directive 5)
 
-#### 1.2 Typography Primitives
+```
+Choose ONE stack from the approved list — NEVER use rejected fonts:
 
-```css
-/* Font families */
---prim-font-sans:    [e.g., 'Inter', 'Geist', system-ui, -apple-system, sans-serif];
---prim-font-display: [e.g., 'Cal Sans', 'Bricolage Grotesque', var(--prim-font-sans)];
---prim-font-mono:    [e.g., 'JetBrains Mono', 'Geist Mono', 'Consolas', monospace];
+  PRIMARY:   Geist Sans | Inter | Plus Jakarta Sans
+  DISPLAY:   Clash Display | Cal Sans | Bricolage Grotesque
+  MONO:      Geist Mono | JetBrains Mono
 
-/* Size scale (fluid or fixed — choose ONE approach) */
---prim-size-10: 0.625rem;  /* 10px */
---prim-size-11: 0.6875rem; /* 11px */
---prim-size-12: 0.75rem;   /* 12px */
---prim-size-13: 0.8125rem; /* 13px */
---prim-size-14: 0.875rem;  /* 14px */
---prim-size-15: 0.9375rem; /* 15px */
---prim-size-16: 1rem;      /* 16px — base */
---prim-size-18: 1.125rem;  /* 18px */
---prim-size-20: 1.25rem;   /* 20px */
---prim-size-24: 1.5rem;    /* 24px */
---prim-size-28: 1.75rem;   /* 28px */
---prim-size-32: 2rem;      /* 32px */
---prim-size-36: 2.25rem;   /* 36px */
---prim-size-40: 2.5rem;    /* 40px */
---prim-size-48: 3rem;      /* 48px */
---prim-size-56: 3.5rem;    /* 56px */
---prim-size-64: 4rem;      /* 64px */
+  REJECTED:  system-ui, Arial, Helvetica, Roboto, Open Sans, Lato
 
-/* Font weights */
---prim-weight-thin:       100;
---prim-weight-extralight: 200;
---prim-weight-light:      300;
---prim-weight-regular:    400;
---prim-weight-medium:     500;
---prim-weight-semibold:   600;
---prim-weight-bold:       700;
---prim-weight-extrabold:  800;
---prim-weight-black:      900;
-
-/* Line heights */
---prim-leading-none:     1;
---prim-leading-tight:    1.25;
---prim-leading-snug:     1.375;
---prim-leading-normal:   1.5;
---prim-leading-relaxed:  1.625;
---prim-leading-loose:    2;
-
-/* Letter spacing */
---prim-tracking-tighter: -0.05em;
---prim-tracking-tight:   -0.025em;
---prim-tracking-normal:   0em;
---prim-tracking-wide:     0.025em;
---prim-tracking-wider:    0.05em;
---prim-tracking-widest:   0.1em;
+  Strategy:  Use variable fonts. Min 3 weights (400/500/600).
+             Headings: bold + tight tracking. Body: regular.
+             Labels: medium + wide tracking.
 ```
 
-#### 1.3 Spacing Primitives
+### Token Architecture (What to Generate — Not What Values to Use)
 
-```css
-/* Base unit: 4px — ALL spacing derived from multiples of this */
---prim-space-0:    0;
---prim-space-px:   1px;
---prim-space-0-5:  0.125rem;  /* 2px  */
---prim-space-1:    0.25rem;   /* 4px  */
---prim-space-1-5:  0.375rem;  /* 6px  */
---prim-space-2:    0.5rem;    /* 8px  */
---prim-space-2-5:  0.625rem;  /* 10px */
---prim-space-3:    0.75rem;   /* 12px */
---prim-space-3-5:  0.875rem;  /* 14px */
---prim-space-4:    1rem;      /* 16px */
---prim-space-5:    1.25rem;   /* 20px */
---prim-space-6:    1.5rem;    /* 24px */
---prim-space-7:    1.75rem;   /* 28px */
---prim-space-8:    2rem;      /* 32px */
---prim-space-9:    2.25rem;   /* 36px */
---prim-space-10:   2.5rem;    /* 40px */
---prim-space-11:   2.75rem;   /* 44px */
---prim-space-12:   3rem;      /* 48px */
---prim-space-14:   3.5rem;    /* 56px */
---prim-space-16:   4rem;      /* 64px */
---prim-space-20:   5rem;      /* 80px */
---prim-space-24:   6rem;      /* 96px */
---prim-space-28:   7rem;      /* 112px */
---prim-space-32:   8rem;      /* 128px */
---prim-space-36:   9rem;      /* 144px */
---prim-space-40:   10rem;     /* 160px */
+The agent must produce these files, but the VALUES inside are project-specific:
+
+```
+OUTPUT FILES:
+  docs/up/13-ui-code/tokens/tokens.css    — CSS custom properties (source of truth)
+  docs/up/13-ui-code/tokens/tokens.ts     — TypeScript exports
+  docs/up/13-ui-code/tokens/tokens.json  — Design tool handoff (Figma)
+  docs/up/13-ui-code/STYLE-GUIDE.md       — Developer usage guide
 ```
 
-#### 1.4 Other Primitive Scales
+#### Token Structure (categories to populate — values are YOUR creative choice)
 
-```css
-/* Border radius */
---prim-radius-none: 0;
---prim-radius-sm:   0.125rem;  /* 2px  */
---prim-radius-md:   0.25rem;   /* 4px  */
---prim-radius-lg:   0.5rem;    /* 8px  */
---prim-radius-xl:   0.75rem;   /* 12px */
---prim-radius-2xl:  1rem;      /* 16px */
---prim-radius-3xl:  1.5rem;    /* 24px */
---prim-radius-full: 9999px;
+```
+COLORS:
+  → Brand primary scale (extract via Radix MCP — pick the right hue for THIS domain)
+  → Neutral scale (slate/zinc/stone — pick based on warm/cool personality)
+  → Semantic scales: error, success, warning, info
+  → Alpha variants for overlays and glass effects
+  → Dark mode anchors (Directive 2 — mandatory values above)
 
-/* Shadows (elevation layers) */
---prim-shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
---prim-shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
---prim-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
---prim-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
---prim-shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
---prim-shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
---prim-shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
---prim-shadow-none: 0 0 #0000;
+TYPOGRAPHY:
+  → Font families (Directive 5 — mandatory approved list)
+  → Size scale (fluid or fixed — choose based on project density needs)
+  → Weight, leading, tracking tokens
 
-/* Animation durations */
---prim-duration-instant:  0ms;
---prim-duration-fastest:  50ms;
---prim-duration-faster:   100ms;
---prim-duration-fast:     150ms;
---prim-duration-normal:   200ms;
---prim-duration-slow:     300ms;
---prim-duration-slower:   400ms;
---prim-duration-slowest:  500ms;
+SPACING:
+  → Base unit (4px standard, or customize for this project's density)
+  → Named layout tokens (page padding, section gap, card padding, etc.)
+  → Component-specific spacing (button, input, table cell)
 
-/* Easing functions */
---prim-ease-linear:    linear;
---prim-ease-in:        cubic-bezier(0.4, 0, 1, 1);
---prim-ease-out:       cubic-bezier(0, 0, 0.2, 1);
---prim-ease-in-out:    cubic-bezier(0.4, 0, 0.2, 1);
---prim-ease-spring:    cubic-bezier(0.34, 1.56, 0.64, 1);
---prim-ease-bounce:    cubic-bezier(0.68, -0.55, 0.265, 1.55);
+EFFECTS:
+  → Border radius scale (match the personality: sharp? rounded? pill-heavy?)
+  → Shadow/elevation layers (subtle for light themes, glow-based for dark)
+  → Animation durations + easing (match Directive 4 Framer Motion specs)
+  → Z-index layers (standard layering pattern)
 
-/* Z-index layers */
---prim-z-below:      -1;
---prim-z-base:        0;
---prim-z-raised:     10;
---prim-z-dropdown:   100;
---prim-z-sticky:     200;
---prim-z-overlay:    300;
---prim-z-modal:      400;
---prim-z-popover:    500;
---prim-z-toast:      600;
---prim-z-tooltip:    700;
---prim-z-maximum:    9999;
+SEMANTIC ALIASES (the layer components actually reference):
+  → Background: base, subtle, muted, overlay
+  → Surface: default, raised, overlay
+  → Text: primary, secondary, tertiary, disabled, inverse, link
+  → Interactive: default, hover, active, focus, muted
+  → Borders: default, strong, subtle, focus, error
+  → State colors: error/success/warning/info (bg, border, text, icon)
+```
 
-/* Opacity */
---prim-opacity-0:     0;
---prim-opacity-5:     0.05;
---prim-opacity-10:    0.1;
---prim-opacity-20:    0.2;
---prim-opacity-25:    0.25;
---prim-opacity-30:    0.3;
---prim-opacity-40:    0.4;
---prim-opacity-50:    0.5;
---prim-opacity-60:    0.6;
---prim-opacity-70:    0.7;
---prim-opacity-75:    0.75;
---prim-opacity-80:    0.8;
---prim-opacity-90:    0.9;
---prim-opacity-95:    0.95;
---prim-opacity-100:   1;
+#### Component Tokens (Per Component — Values Vary by Project)
 
-/* Breakpoints */
---prim-bp-xs:  320px;
---prim-bp-sm:  640px;
---prim-bp-md:  768px;
---prim-bp-lg:  1024px;
---prim-bp-xl:  1280px;
---prim-bp-2xl: 1536px;
+```
+For each component type the system uses, define tokens for:
+  → Variants (primary, secondary, ghost, destructive, outline)
+  → States (default, hover, active, focus, disabled, loading)
+  → Dimensions (height, padding, radius, gap)
+  → Special effects (glow on hover, border animation, backdrop-blur)
+
+Common components: Button, Input, Card, Table, Badge, Dialog, Navigation, Toast.
+Component list is determined by 08-interface-design.md — NOT by a fixed template.
 ```
 
 ---
 
-### Layer 2: Semantic Tokens (Purpose-Based Aliases — USE THESE in Components)
+### State Patterns (Behavioral Specifications)
 
-Semantic tokens give meaning to primitive values. They are THE tokens that components reference.
+These are BEHAVIOR rules, not value prescriptions. Components must implement these patterns using the project's own tokens.
 
-#### 2.1 Semantic Color Tokens
-
-```css
-/* Background layers */
---color-bg-base:        var(--prim-neutral-1);  /* Page background */
---color-bg-subtle:      var(--prim-neutral-2);  /* Card backgrounds, subtle sections */
---color-bg-muted:       var(--prim-neutral-3);  /* Disabled backgrounds */
---color-bg-overlay:     rgba(0,0,0,0.5);        /* Modal backdrop */
-
-/* Surface layers (elevation above background) */
---color-surface-default: #ffffff;               /* Cards, panels */
---color-surface-raised:  var(--prim-neutral-1); /* Popovers, dropdowns */
---color-surface-overlay: #ffffff;               /* Modals */
-
-/* Text hierarchy */
---color-text-primary:   var(--prim-neutral-12); /* Headings, primary content */
---color-text-secondary: var(--prim-neutral-11); /* Subtitles, descriptions */
---color-text-tertiary:  var(--prim-neutral-9);  /* Captions, metadata */
---color-text-disabled:  var(--prim-neutral-7);  /* Disabled elements */
---color-text-inverse:   #ffffff;                /* Text on dark/colored backgrounds */
---color-text-link:      var(--prim-primary-11); /* Links */
---color-text-link-hover:var(--prim-primary-12); /* Links on hover */
-
-/* Interactive (brand primary) */
---color-interactive-default: var(--prim-primary-9);  /* Default state */
---color-interactive-hover:   var(--prim-primary-10); /* Hover state */
---color-interactive-active:  var(--prim-primary-11); /* Pressed/active state */
---color-interactive-focus:   var(--prim-primary-8);  /* Focus ring base */
---color-interactive-muted:   var(--prim-primary-3);  /* Subtle interactive bg */
---color-interactive-subtle:  var(--prim-primary-4);  /* Hover on subtle interactive bg */
-
-/* Borders */
---color-border-default:  var(--prim-neutral-6); /* Standard borders */
---color-border-strong:   var(--prim-neutral-8); /* Emphasized borders */
---color-border-subtle:   var(--prim-neutral-5); /* Subtle separators */
---color-border-focus:    var(--prim-primary-8); /* Focus rings */
---color-border-error:    var(--prim-error-8);   /* Error state borders */
-
-/* Semantic states */
---color-error-bg:        var(--prim-error-3);
---color-error-border:    var(--prim-error-7);
---color-error-text:      var(--prim-error-11);
---color-error-icon:      var(--prim-error-9);
-
---color-success-bg:      var(--prim-success-3);
---color-success-border:  var(--prim-success-7);
---color-success-text:    var(--prim-success-11);
---color-success-icon:    var(--prim-success-9);
-
---color-warning-bg:      var(--prim-warning-3);
---color-warning-border:  var(--prim-warning-7);
---color-warning-text:    var(--prim-warning-11);
---color-warning-icon:    var(--prim-warning-9);
-
---color-info-bg:         var(--prim-info-3);
---color-info-border:     var(--prim-info-7);
---color-info-text:       var(--prim-info-11);
---color-info-icon:       var(--prim-info-9);
-
-/* Icons */
---color-icon-default:    var(--prim-neutral-11);
---color-icon-secondary:  var(--prim-neutral-9);
---color-icon-disabled:   var(--prim-neutral-7);
---color-icon-inverse:    #ffffff;
---color-icon-interactive: var(--prim-primary-9);
 ```
+LOADING:
+  → Skeleton animation matches the EXACT dimensions of content it replaces
+  → Inline spinners for buttons, page-level overlay for navigation
+  → Staggered entrance for list items (Directive 4)
+  → Minimum 200ms display time (prevents flash)
 
-**Dark Mode equivalents**: Define the same semantic tokens under `.dark` or `[data-theme="dark"]` with adjusted primitive references.
+EMPTY STATE:
+  → Every list/table screen MUST have one
+  → Title explains WHY it's empty (not just THAT it's empty)
+  → "No results" ≠ "No data yet" — different illustrations and CTAs
+  → Include a CTA button when there's a clear next action
 
-#### 2.2 Semantic Typography Tokens (Text Styles)
+ERROR STATE:
+  → ALWAYS pair red text with an icon (never text alone)
+  → Inline errors below fields, banner errors at section top
+  → Network errors show retry action within 1 second
+  → Page-level errors follow empty state layout with retry CTA
 
-```css
-/* HEADING STYLES — used for page/section titles */
---text-style-h1:       var(--prim-size-48) / var(--prim-leading-tight)   var(--prim-font-display)  var(--prim-weight-bold);
---text-style-h2:       var(--prim-size-36) / var(--prim-leading-tight)   var(--prim-font-display)  var(--prim-weight-semibold);
---text-style-h3:       var(--prim-size-28) / var(--prim-leading-snug)    var(--prim-font-display)  var(--prim-weight-semibold);
---text-style-h4:       var(--prim-size-24) / var(--prim-leading-snug)    var(--prim-font-sans)     var(--prim-weight-semibold);
---text-style-h5:       var(--prim-size-20) / var(--prim-leading-normal)  var(--prim-font-sans)     var(--prim-weight-medium);
---text-style-h6:       var(--prim-size-18) / var(--prim-leading-normal)  var(--prim-font-sans)     var(--prim-weight-medium);
+SUCCESS STATE:
+  → Auto-dismiss unless user action is required
+  → Confirm WHAT succeeded (not just "Done")
+  → Toast: slide-in, auto-dismiss 4s
 
-/* BODY STYLES — used for content and descriptions */
---text-style-body-lg:  var(--prim-size-18) / var(--prim-leading-relaxed) var(--prim-font-sans)     var(--prim-weight-regular);
---text-style-body:     var(--prim-size-16) / var(--prim-leading-normal)  var(--prim-font-sans)     var(--prim-weight-regular);
---text-style-body-sm:  var(--prim-size-14) / var(--prim-leading-normal)  var(--prim-font-sans)     var(--prim-weight-regular);
---text-style-body-xs:  var(--prim-size-12) / var(--prim-leading-normal)  var(--prim-font-sans)     var(--prim-weight-regular);
+DISABLED STATE:
+  → 50% opacity, not-allowed cursor, pointer-events: none
+  → No hover/focus styles on disabled elements
+  → aria-disabled="true" on all disabled interactives
 
-/* LABEL STYLES — used for form labels, table headers, nav items */
---text-style-label-lg: var(--prim-size-15) / var(--prim-leading-tight)   var(--prim-font-sans)     var(--prim-weight-medium);
---text-style-label:    var(--prim-size-14) / var(--prim-leading-tight)   var(--prim-font-sans)     var(--prim-weight-medium);
---text-style-label-sm: var(--prim-size-12) / var(--prim-leading-tight)   var(--prim-font-sans)     var(--prim-weight-medium);
-
-/* CAPTION and OVERLINE — used for metadata, timestamps, helper text */
---text-style-caption:      var(--prim-size-12) / var(--prim-leading-normal) var(--prim-font-sans) var(--prim-weight-regular);
---text-style-overline:     var(--prim-size-11) / var(--prim-leading-none)   var(--prim-font-sans) var(--prim-weight-medium);  /* letter-spacing: wide */
-
-/* CODE STYLES */
---text-style-code-inline:  var(--prim-size-14) / var(--prim-leading-normal)  var(--prim-font-mono) var(--prim-weight-regular);
---text-style-code-block:   var(--prim-size-13) / var(--prim-leading-relaxed) var(--prim-font-mono) var(--prim-weight-regular);
-```
-
-#### 2.3 Semantic Spacing Tokens (Named Layout Values)
-
-```css
-/* PAGE LAYOUT */
---space-page-padding-x:      var(--prim-space-6);   /* 24px — horizontal page margin */
---space-page-padding-y:      var(--prim-space-8);   /* 32px — vertical page margin */
---space-section-gap:         var(--prim-space-16);  /* 64px — between major sections */
---space-content-gap:         var(--prim-space-8);   /* 32px — between content blocks */
-
-/* COMPONENT STRUCTURE */
---space-card-padding:        var(--prim-space-6);   /* 24px — card internal padding */
---space-card-gap:            var(--prim-space-4);   /* 16px — gap between card elements */
---space-form-gap:            var(--prim-space-5);   /* 20px — gap between form fields */
---space-form-field-gap:      var(--prim-space-2);   /* 8px  — label to input gap */
---space-inline-gap:          var(--prim-space-2);   /* 8px  — gap between inline elements */
-
-/* INTERACTIVE ELEMENTS */
---space-button-padding-x-sm: var(--prim-space-3);   /* 12px */
---space-button-padding-x-md: var(--prim-space-4);   /* 16px */
---space-button-padding-x-lg: var(--prim-space-6);   /* 24px */
---space-button-padding-y-sm: var(--prim-space-1-5); /* 6px  */
---space-button-padding-y-md: var(--prim-space-2-5); /* 10px */
---space-button-padding-y-lg: var(--prim-space-3);   /* 12px */
---space-input-padding-x:     var(--prim-space-3);   /* 12px */
---space-input-padding-y:     var(--prim-space-2-5); /* 10px */
---space-table-cell-padding-x: var(--prim-space-4);  /* 16px */
---space-table-cell-padding-y: var(--prim-space-3);  /* 12px */
-
-/* NAVIGATION */
---space-navbar-height:       var(--prim-space-16);  /* 64px */
---space-navbar-padding-x:    var(--prim-space-6);   /* 24px */
---space-sidebar-width:       16rem;                  /* 256px */
---space-sidebar-collapsed:   var(--prim-space-14);  /* 56px */
-```
-
-#### 2.4 Semantic Size Tokens (Component Dimensions)
-
-```css
-/* TOUCH TARGETS (minimum 44px per WCAG 2.5.5) */
---size-touch-target-min:    44px;                   /* WCAG minimum */
-
-/* COMPONENT HEIGHTS */
---size-button-height-sm:    var(--prim-space-8);    /* 32px */
---size-button-height-md:    var(--prim-space-10);   /* 40px — WCAG-compliant */
---size-button-height-lg:    var(--prim-space-12);   /* 48px */
---size-input-height-sm:     var(--prim-space-8);    /* 32px */
---size-input-height-md:     var(--prim-space-10);   /* 40px — WCAG-compliant */
---size-input-height-lg:     var(--prim-space-12);   /* 48px */
---size-checkbox-size:       var(--prim-space-5);    /* 20px */
---size-radio-size:          var(--prim-space-5);    /* 20px */
---size-switch-height:       var(--prim-space-6);    /* 24px */
---size-switch-width:        calc(var(--size-switch-height) * 1.75);
-
-/* ICON SIZES */
---size-icon-xs:             var(--prim-space-3);    /* 12px */
---size-icon-sm:             var(--prim-space-4);    /* 16px */
---size-icon-md:             var(--prim-space-5);    /* 20px */
---size-icon-lg:             var(--prim-space-6);    /* 24px */
---size-icon-xl:             var(--prim-space-8);    /* 32px */
-
-/* AVATAR SIZES */
---size-avatar-xs:           var(--prim-space-6);    /* 24px */
---size-avatar-sm:           var(--prim-space-8);    /* 32px */
---size-avatar-md:           var(--prim-space-10);   /* 40px */
---size-avatar-lg:           var(--prim-space-12);   /* 48px */
---size-avatar-xl:           var(--prim-space-16);   /* 64px */
---size-avatar-2xl:          var(--prim-space-24);   /* 96px */
-
-/* CONTAINER WIDTHS */
---size-container-xs:    20rem;    /* 320px  — mobile */
---size-container-sm:    24rem;    /* 384px  — narrow */
---size-container-md:    28rem;    /* 448px  — dialog default */
---size-container-lg:    32rem;    /* 512px  — wide dialog */
---size-container-xl:    36rem;    /* 576px  — form page */
---size-container-2xl:   42rem;    /* 672px  — article */
---size-container-3xl:   48rem;    /* 768px  */
---size-container-4xl:   56rem;    /* 896px  */
---size-container-5xl:   64rem;    /* 1024px */
---size-container-6xl:   72rem;    /* 1152px */
---size-container-full:  80rem;    /* 1280px — max-width */
-```
-
-#### 2.5 Semantic Radius Tokens
-
-```css
---radius-none:   var(--prim-radius-none);
---radius-xs:     var(--prim-radius-sm);   /* 2px  — subtle */
---radius-sm:     var(--prim-radius-md);   /* 4px  — inputs, badges */
---radius-md:     var(--prim-radius-lg);   /* 8px  — buttons, cards */
---radius-lg:     var(--prim-radius-xl);   /* 12px — panels, dialogs */
---radius-xl:     var(--prim-radius-2xl);  /* 16px — featured cards */
---radius-2xl:    var(--prim-radius-3xl);  /* 24px — hero sections */
---radius-pill:   var(--prim-radius-full); /* 9999px — pills, tags */
+FOCUS STATE:
+  → :focus-visible on ALL interactive elements
+  → outline: none is FORBIDDEN without accessible alternative
+  → Focus ring: 3:1 contrast against adjacent background
+  → Skip link as first focusable element on every page
 ```
 
 ---
 
-### Layer 3: Component Tokens (Derived — Specific Per Component)
-
-Component tokens consume semantic tokens and provide explicit values for each component variant and state.
-
-```css
-/* ── BUTTON ────────────────────────────────────────────── */
---button-radius:              var(--radius-md);
---button-font-weight:         var(--prim-weight-medium);
---button-font-size-sm:        var(--prim-size-13);
---button-font-size-md:        var(--prim-size-14);
---button-font-size-lg:        var(--prim-size-16);
-
-/* Primary variant */
---button-primary-bg:          var(--color-interactive-default);
---button-primary-bg-hover:    var(--color-interactive-hover);
---button-primary-bg-active:   var(--color-interactive-active);
---button-primary-text:        var(--color-text-inverse);
---button-primary-border:      transparent;
-
-/* Secondary/Outline variant */
---button-secondary-bg:        transparent;
---button-secondary-bg-hover:  var(--color-interactive-muted);
---button-secondary-text:      var(--color-text-primary);
---button-secondary-border:    var(--color-border-default);
-
-/* Ghost variant */
---button-ghost-bg:            transparent;
---button-ghost-bg-hover:      var(--color-bg-subtle);
---button-ghost-text:          var(--color-text-primary);
-
-/* Destructive variant */
---button-destructive-bg:      var(--prim-error-9);
---button-destructive-bg-hover: var(--prim-error-10);
---button-destructive-text:    #ffffff;
-
-/* Disabled (all variants) */
---button-disabled-opacity:    var(--prim-opacity-50);
---button-disabled-cursor:     not-allowed;
-
-/* Focus ring */
---button-focus-ring-width:    2px;
---button-focus-ring-offset:   2px;
---button-focus-ring-color:    var(--color-border-focus);
-
-/* ── INPUT / FORM FIELD ────────────────────────────────── */
---input-bg:                   var(--color-surface-default);
---input-bg-disabled:          var(--color-bg-muted);
---input-border:               var(--color-border-default);
---input-border-hover:         var(--color-border-strong);
---input-border-focus:         var(--color-border-focus);
---input-border-error:         var(--color-border-error);
---input-border-width:         1px;
---input-radius:               var(--radius-sm);
---input-text:                 var(--color-text-primary);
---input-placeholder:          var(--color-text-tertiary);
---input-text-disabled:        var(--color-text-disabled);
---input-label-text:           var(--color-text-primary);
---input-label-font-weight:    var(--prim-weight-medium);
---input-helper-text:          var(--color-text-tertiary);
---input-error-text:           var(--color-error-text);
---input-focus-ring:           var(--button-focus-ring-width) solid var(--color-border-focus);
-
-/* ── CARD ─────────────────────────────────────────────── */
---card-bg:                    var(--color-surface-default);
---card-border:                var(--color-border-subtle);
---card-border-width:          1px;
---card-radius:                var(--radius-lg);
---card-shadow:                var(--prim-shadow-sm);
---card-shadow-hover:          var(--prim-shadow-md);
---card-padding:               var(--space-card-padding);
-
-/* ── TABLE ───────────────────────────────────────────── */
---table-header-bg:            var(--color-bg-subtle);
---table-header-text:          var(--color-text-secondary);
---table-header-font-weight:   var(--prim-weight-medium);
---table-row-bg:               var(--color-surface-default);
---table-row-bg-hover:         var(--color-bg-subtle);
---table-row-bg-selected:      var(--color-interactive-muted);
---table-border:               var(--color-border-subtle);
---table-cell-text:            var(--color-text-primary);
-
-/* ── BADGE / TAG ─────────────────────────────────────── */
---badge-radius:               var(--radius-pill);
---badge-font-size:            var(--prim-size-11);
---badge-font-weight:          var(--prim-weight-medium);
---badge-padding-x:            var(--prim-space-2);
---badge-padding-y:            var(--prim-space-0-5);
-
-/* ── DIALOG / MODAL ──────────────────────────────────── */
---dialog-bg:                  var(--color-surface-overlay);
---dialog-radius:              var(--radius-xl);
---dialog-shadow:              var(--prim-shadow-2xl);
---dialog-overlay-bg:          rgba(0, 0, 0, 0.5);
---dialog-width-sm:            var(--size-container-md);
---dialog-width-md:            var(--size-container-lg);
---dialog-width-lg:            var(--size-container-xl);
-
-/* ── NAVIGATION ──────────────────────────────────────── */
---nav-height:                 var(--space-navbar-height);
---nav-bg:                     var(--color-surface-default);
---nav-border:                 var(--color-border-subtle);
---nav-item-text:              var(--color-text-secondary);
---nav-item-text-active:       var(--color-text-primary);
---nav-item-bg-hover:          var(--color-bg-subtle);
---nav-item-bg-active:         var(--color-interactive-muted);
---nav-item-radius:            var(--radius-md);
-
-/* ── TOAST / NOTIFICATION ────────────────────────────── */
---toast-radius:               var(--radius-lg);
---toast-shadow:               var(--prim-shadow-lg);
---toast-max-width:            24rem;
-```
-
----
-
-### Layer 4: State Patterns (Standard UI State Specifications)
-
-Every system needs consistent visual patterns for the following states. These are NOT components — they are SPECIFICATIONS that components must implement.
-
-#### 4.1 Loading State
-
-```
-SKELETON ANIMATION:
-  background: linear-gradient(90deg, var(--color-bg-subtle) 25%, var(--color-bg-muted) 50%, var(--color-bg-subtle) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  border-radius: var(--radius-sm);
-
-RULES:
-  - Skeleton matches the EXACT dimensions of the content it replaces
-  - Inline spinners use --size-icon-md and --color-interactive-default
-  - Page-level loading overlay uses --dialog-overlay-bg at 80% opacity
-  - Buttons in loading state: show spinner (--size-icon-sm) + replace text with empty
-  - Minimum display time: 200ms (prevents flash for fast responses)
-```
-
-#### 4.2 Empty State
-
-```
-LAYOUT:
-  Container: centered, max-width var(--size-container-sm)
-  Padding: var(--space-section-gap)
-  Gap between elements: var(--space-content-gap)
-
-ELEMENTS (in order):
-  1. Illustration: 120×120px (optional, SVG preferred)
-  2. Title: --text-style-h5, --color-text-primary
-  3. Description: --text-style-body-sm, --color-text-secondary, max-width: 320px
-  4. CTA Button: primary variant, size-md (if applicable)
-
-RULES:
-  - Every list/table screen MUST have an empty state designed
-  - Empty state title must explain WHY it's empty, not just THAT it's empty
-  - Empty state for "no results" is different from "no data yet"
-```
-
-#### 4.3 Error State
-
-```
-INLINE ERROR (form fields):
-  Text color: --color-error-text
-  Font: --text-style-caption
-  Icon: --size-icon-sm, --color-error-icon
-  Displayed below the field, with --space-form-field-gap gap
-
-BANNER ERROR (top of section):
-  Background: --color-error-bg
-  Border: 1px solid --color-error-border
-  Text: --color-error-text
-  Radius: --radius-md
-  Padding: var(--prim-space-4)
-
-PAGE-LEVEL ERROR:
-  Same layout as Empty State
-  Icon: warning/error illustration
-  Title: --text-style-h4, --color-error-text
-  Retry button: primary variant
-
-RULES:
-  - Error messages are NEVER red text alone — always include an icon
-  - Toast errors use --color-error-bg, border, and dismissible
-  - Network errors show retry action within 1 second of failure
-```
-
-#### 4.4 Success State
-
-```
-INLINE SUCCESS (form submission):
-  Icon: checkmark, --size-icon-md, --color-success-icon
-  Text: --color-success-text, --text-style-body-sm
-
-TOAST SUCCESS:
-  Background: --color-success-bg
-  Border: 1px solid --color-success-border
-  Auto-dismiss: 4000ms
-
-PAGE-LEVEL SUCCESS (e.g., onboarding complete):
-  Full-page celebration layout with CTA to next action
-
-RULES:
-  - Success states auto-dismiss unless they require user action
-  - Success confirmation must confirm WHAT was successful (not just "Done")
-```
-
-#### 4.5 Disabled State
-
-```
-ALL INTERACTIVE ELEMENTS:
-  Opacity: var(--button-disabled-opacity) — 50%
-  Cursor: var(--button-disabled-cursor) — not-allowed
-  Pointer-events: none
-  Color: --color-text-disabled (for text inside disabled elements)
-
-RULES:
-  - Disabled elements never have hover/focus styles
-  - Disabled form fields show placeholder-style text
-  - Required ARIA: aria-disabled="true" on all disabled interactive elements
-  - Disabled buttons NEVER change on hover (no color shift)
-```
-
-#### 4.6 Focus State (Keyboard Navigation)
-
-```
-UNIVERSAL FOCUS RING:
-  outline: var(--button-focus-ring-width) solid var(--button-focus-ring-color);
-  outline-offset: var(--button-focus-ring-offset);
-
-RULES:
-  - ALL interactive elements MUST have :focus-visible styles
-  - Focus rings are NEVER removed (outline: none is forbidden without alternative)
-  - Focus ring color must have 3:1 contrast ratio against adjacent background (WCAG 3.4.1)
-  - Skip link must be the first focusable element on every page
-```
-
----
-
-### WCAG Compliance Validation
-
-Before proceeding to component generation, validate ALL semantic color combinations:
+### WCAG Compliance Validation (Non-Negotiable)
 
 ```
 MINIMUM CONTRAST RATIOS:
-  Normal text (<18pt): 4.5:1  (WCAG AA Level)
-  Large text (≥18pt or bold ≥14pt): 3:1
-  Non-text UI elements (icons, borders): 3:1
-  Enhanced (AAA): 7:1 for normal, 4.5:1 for large
+  Normal text (<18pt): 4.5:1  (WCAG AA)
+  Large text (≥18pt/bold ≥14pt): 3:1
+  Non-text UI (icons, borders): 3:1
 
-COMBINATIONS TO VALIDATE:
-  ✓ --color-text-primary on --color-bg-base
-  ✓ --color-text-secondary on --color-bg-base
-  ✓ --color-text-primary on --color-bg-subtle
-  ✓ --color-text-inverse on --color-interactive-default
-  ✓ --color-text-inverse on --button-destructive-bg
-  ✓ --color-text-link on --color-bg-base
-  ✓ --color-error-text on --color-error-bg
-  ✓ --color-success-text on --color-success-bg
-  ✓ --color-warning-text on --color-warning-bg
-  ✓ --color-text-disabled on --color-bg-base (allowed to FAIL — disabled)
+VALIDATE THESE COMBINATIONS (using YOUR project's tokens):
+  ✓ text-primary on bg-base
+  ✓ text-secondary on bg-base
+  ✓ text-primary on bg-subtle
+  ✓ text-inverse on interactive-default
+  ✓ text-inverse on destructive-bg
+  ✓ text-link on bg-base
+  ✓ error-text on error-bg
+  ✓ success-text on success-bg
+  ✓ warning-text on warning-bg
+  ✗ text-disabled on bg-base  (allowed to FAIL)
 ```
 
-### Token Generation Command
+### Visual Quality Gate (Directive 6 — Applied After Token Generation)
 
-```typescript
-// After defining all tokens, generate the token files:
-// 1. Save tokens.css — CSS custom properties
-// 2. Save tokens.ts  — TypeScript exports
-// 3. Save tokens.json — Design tool format (Figma tokens plugin compatible)
-// 4. Save STYLE-GUIDE.md — Usage documentation
+```
+BEFORE proceeding to component generation, verify:
+
+  □ Do these tokens produce a 2025+ visual identity, or a 2020 template?
+  □ Is there DEPTH? (layered backgrounds, glows, gradient subtlety)
+  □ Is there SHINE? (border effects, highlight animations, glass blur)
+  □ Is there LIFE? (animation tokens that enable Directive 4 micro-interactions)
+  □ Is there PERSONALITY? (distinctive fonts, non-generic palette, intentional spacing rhythm)
+
+If ANY answer is NO → refine the tokens before generating components.
+Do NOT proceed with mediocre tokens hoping components will fix it later.
 ```
 
 ---
-
 ## Step 6: Component Mapping
 
 For each interface element in `08-interface-design.md`, map to a specific component:

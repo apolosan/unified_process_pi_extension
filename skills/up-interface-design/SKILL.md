@@ -74,6 +74,41 @@ Apply 5W2H before designing a single screen. Interface design that skips this st
 
 ---
 
+---
+
+## ⚠️ UI/UX DESIGN GUIDELINES (MANDATORY Reference)
+
+> **These guidelines are defined in the Design System activity (`/skill:up-design-system`) and MUST be considered during interface design.** Although this activity is technology-agnostic, layout and interaction decisions MUST anticipate these visual directives.
+
+### Guideline Impact on Interface Design
+
+| Directive | What It Means for Interface Design (This Activity) |
+|---|---|
+| **D1: Component Mix** | When specifying screens, note which elements benefit from enhanced effects (hero sections, feature cards, CTAs). Flag these in the artifact so the Design System activity knows where to apply Magic UI/Aceternity effects. |
+| **D2: Dark Mode Sophistication** | Design with dark backgrounds as primary. Specify that card surfaces, panels, and elevated elements use layered depth (deeper blacks → lighter surfaces). Borders should be subtle (low-opacity white). |
+| **D3: Bento Grids** | For dashboard overview screens and feature showcase sections, specify **asymmetric Bento Grid layouts** instead of uniform grids. Mark the "hero cell" (largest, primary CTA or key metric). |
+| **D4: Micro-interactions** | When describing Entry Units (forms), specify validation feedback behavior (inline animation on error, success confirmation). When describing navigation, specify transition behavior between screens. |
+| **D5: No Generic Fonts** | Specify in the artifact that headings use a **geometric display font** (Clash Display, Cal Sans) and body uses **Geist Sans or Inter**. Flag any screen that requires typographic emphasis. |
+| **D6: Reject the Mediocre** | Every screen specification MUST include a "visual enhancement" note describing what depth, glow, or layer effects the Design System should apply. No screen should be specified as "flat" or "minimal" without justification. |
+
+### Available UI/UX MCPs (for Design System activity)
+
+The following MCPs are configured and available for the Design System activity to generate visual code:
+
+| MCP | Purpose | Used In |
+|---|---|---|
+| `shadcn_*` | Structure components (buttons, cards, inputs, tables) | Design System |
+| `magicuidesign-mcp` | Effects: border-beam, shine-border, particles, spotlight | Design System |
+| `aceternityui` | Premium effects: shimmer-button, background-beams, 3d-card | Design System |
+| `reactbits` | Creative animations, micro-interaction primitives | Design System |
+| `lucide-icons` | 1500+ consistent icons (ALWAYS preferred over custom SVGs) | Design System |
+| `radix_mcp_server_*` | Themes, primitives, color scales | Design System |
+| `flyonui_*` | Full blocks/layouts | Design System |
+
+> **Note:** These MCPs are NOT used in this activity (interface design is technology-agnostic). They are listed here as reference so the interface designer can annotate the artifact with implementation hints for the Design System activity.
+
+---
+
 ## Step-by-Step Execution
 
 ### 1. Organize by Actor
