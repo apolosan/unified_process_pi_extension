@@ -37,7 +37,7 @@ Canonical public package paths:
 | Command | Description |
 |---|---|
 | `/up [system vision]` | Starts a new UP process with the provided vision |
-| `/up` | Resumes an existing UP process or prompts for a vision interactively |
+| `/up` | Intelligently resumes an existing UP process from session state, project state, or `docs/up/` artifacts; if found, it re-invokes the orchestrator |
 | `/up-status` | Displays the full state: phase, iteration, activities, and artifacts |
 | `/up-next` | Advances to the next pending UP activity |
 | `/up-artifacts` | Lists and browses the generated artifacts |
@@ -216,7 +216,7 @@ It should support multiple simultaneous users.
 - ✅ **Deployment stage** — prepares and deploys the system to homologation, pre-production, or production
 - ✅ **Documentation stage** — compiles stakeholder, user, developer, operator, and release documentation from authoritative artifacts and runtime evidence
 - ✅ **Iterative by protocol** — if implementation or documentation exposes a design gap, the agent loops back to the correct upstream activity
-- ✅ **Persistent state** — process resumable across pi sessions
+- ✅ **Persistent state** — process resumable across pi sessions via session history, `.pi/unified-process/state.json`, and project artifact recovery
 - ✅ **Mermaid diagrams** — all diagrams in renderable Markdown format
 - ✅ **Standardized templates** — consistent structure for all UP artifacts
 

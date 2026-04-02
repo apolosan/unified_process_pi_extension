@@ -20,7 +20,8 @@ import type { ExtensionAPI } from '@mariozechner/pi-coding-agent';
 import { registerTools } from './src/tools.ts';
 import { registerCommands } from './src/commands.ts';
 import {
-  restoreStateFromEntries,
+  restoreStateForProject,
+  saveStateToProject,
   getStatusSummary,
   getNextActivity,
   type UPState,
@@ -33,12 +34,31 @@ export default function unifiedProcessExtension(pi: ExtensionAPI): void {
   const setState = (state: UPState): void => {
     currentState = state;
   };
+  const ensureState = async (cwd: string, entries: any[] = []): Promise<UPState | null> => {
+    if (currentState) return currentState;
+
+    currentState = await restoreStateForProject(cwd, entries);
+    if (currentState) {
+      await saveStateToProject(cwd, currentState);
+    }
+
+    return currentState;
+  };
+  const commitState = async (cwd: string, state: UPState): Promise<void> => {
+    currentState = state;
+    await saveStateToProject(cwd, state);
+    pi.appendEntry('up-state', state);
+  };
 
   pi.on('session_start', async (_event, ctx) => {
-    currentState = restoreStateFromEntries(ctx.sessionManager.getEntries() as any[]);
+    currentState = await restoreStateForProject(
+      ctx.cwd,
+      (ctx.sessionManager.getEntries() as any[]) ?? []
+    );
 
     if (!currentState) return;
 
+    await saveStateToProject(ctx.cwd, currentState);
     ctx.ui.setStatus('up', getStatusSummary(currentState));
     ctx.ui.notify(
       `📐 UP process restored: "${currentState.systemName}" [${currentState.currentPhase}]`,
@@ -91,6 +111,6 @@ export default function unifiedProcessExtension(pi: ExtensionAPI): void {
     return { systemPrompt: event.systemPrompt + upContext };
   });
 
-  registerTools(pi, getState, setState);
-  registerCommands(pi, getState, setState);
+  registerTools(pi, getState, setState, ensureState, commitState);
+  registerCommands(pi, getState, setState, ensureState, commitState);
 }
