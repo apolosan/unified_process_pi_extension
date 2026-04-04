@@ -105,12 +105,12 @@ export function registerTools(
     name: 'up_update_state',
     label: 'UP Update State',
     description:
-      'Updates the Unified Process state. Use to mark activities as completed or change the current phase.',
-    promptSnippet: 'Update UP state (phase, completed activities)',
+      'Updates the Unified Process state. Use to mark activities as completed, change the current phase, or persist the explicit next command chosen by the orchestrator for refinement-aware transitions.',
+    promptSnippet: 'Update UP state (phase, completed activities, recommended next command)',
     parameters: Type.Object({
       updates: Type.String({
         description:
-          'JSON string with the fields to update. Example: {"completedActivities":["vision","requirements"],"currentPhase":"elaboration"}',
+          'JSON string with the fields to update. Examples: {"completedActivities":["vision","requirements"],"currentPhase":"elaboration"} or {"recommendedNextCommand":"/skill:up-contracts","recommendedNextReason":"Implementation revealed a contract gap that must be refined before proceeding."}',
       }),
     }),
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {

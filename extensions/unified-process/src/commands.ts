@@ -1,26 +1,72 @@
 /**
  * Unified Process (UP) Extension — Slash Commands Registration
- * Registers the 4 slash commands: /up, /up-status, /up-next, /up-artifacts
+ * Registers the 5 slash commands: /up, /up-status, /up-next, /up-auto, /up-artifacts
  */
 
-import type { ExtensionAPI } from '@mariozechner/pi-coding-agent';
+import type { ExtensionAPI, ExtensionCommandContext } from '@mariozechner/pi-coding-agent';
 import {
+  clearRecommendedNextAction,
   createInitialState,
+  getEffectiveNextCommand,
   getNextActivity,
-  getStatusSummary,
+  getRecommendedNextCommand,
   type UPState,
 } from './state.ts';
+import { deriveSystemNameFromVision, normalizeVisionText } from './system-name.ts';
 
-function deriveSystemName(text: string): string {
-  return text
-    .trim()
-    .split(/\s+/)
-    .slice(0, 6)
-    .join(' ');
+function buildStartFollowUp(state: UPState): string {
+  return [
+    'Execute /skill:up-orchestrator to create or refresh the Unified Process master plan.',
+    `Provisional system name candidate: "${state.systemName}"`,
+    'MANDATORY FIRST STEP: read the COMPLETE system vision below, establish the canonical systemName for the project, and immediately persist it with up_update_state before generating or updating any artifact.',
+    'MANDATORY ORCHESTRATION STEP: after deciding what should happen next, persist the exact recommendedNextCommand and recommendedNextReason with up_update_state before continuing.',
+    'Use the COMPLETE system vision below as the authoritative baseline for scope, actors, requirements, constraints, and business rules.',
+    '',
+    'Complete system vision:',
+    state.vision,
+  ].join('\n');
+}
+
+function buildResumeFollowUp(state: UPState, next: ReturnType<typeof getNextActivity>): string {
+  const recommendedNext = getRecommendedNextCommand(state);
+  const resumeCommand = recommendedNext ?? '/skill:up-orchestrator';
+
+  return [
+    `Resume the Unified Process by executing ${resumeCommand}.`,
+    `Current systemName: "${state.systemName}"`,
+    'Before proceeding, validate whether the current systemName still matches the authoritative vision. If a better canonical name is evident, persist it immediately with up_update_state.',
+    'Persist the next explicit orchestration decision with recommendedNextCommand and recommendedNextReason before continuing, especially if refinement of an upstream stage is required.',
+    `Current phase: ${state.currentPhase}`,
+    `Next activity: ${next ?? 'COMPLETED'}`,
+    `Recommended next command: ${recommendedNext ?? '(none)'}`,
+    ...(state.recommendedNextReason
+      ? [`Recommendation rationale: ${state.recommendedNextReason}`]
+      : []),
+    `Known artifacts: ${state.artifacts.length}`,
+    '',
+    'Authoritative system vision:',
+    state.vision || '(vision not stored in state)',
+  ].join('\n');
 }
 
 function getNoStateMessage(): string {
   return 'No active or recoverable UP process found in this project. Use /up [system vision] to start one.';
+}
+
+function formatAutoMode(enabled: boolean): string {
+  return enabled ? 'ON' : 'OFF';
+}
+
+async function consumeRecommendedNextCommandIfNeeded(
+  ctx: ExtensionCommandContext,
+  state: UPState,
+  commitState: (cwd: string, state: UPState) => Promise<void>
+): Promise<UPState> {
+  if (!getRecommendedNextCommand(state)) return state;
+
+  const cleared = clearRecommendedNextAction(state);
+  await commitState(ctx.cwd, cleared);
+  return cleared;
 }
 
 export function registerCommands(
@@ -28,22 +74,31 @@ export function registerCommands(
   getState: () => UPState | null,
   _setState: (s: UPState) => void,
   ensureState: (cwd: string, entries?: any[]) => Promise<UPState | null>,
-  commitState: (cwd: string, state: UPState) => Promise<void>
+  commitState: (cwd: string, state: UPState) => Promise<void>,
+  isAutoTransitionEnabled: () => boolean,
+  setAutoTransitionEnabled: (ctx: ExtensionCommandContext, enabled: boolean) => void,
+  toggleAutoTransition: (ctx: ExtensionCommandContext) => boolean,
+  dispatchUPCommand: (command: string, ctx: ExtensionCommandContext, reason?: string) => void,
+  refreshUPUI: (ctx: ExtensionCommandContext, state?: UPState | null) => void
 ): void {
   pi.registerCommand('up', {
     description: 'Start a new Unified Process or intelligently resume one from the current project.',
     handler: async (args, ctx) => {
-      const trimmed = args.trim();
+      const visionFromArgs = normalizeVisionText(args);
 
-      if (trimmed) {
-        const state = createInitialState(deriveSystemName(trimmed), trimmed);
-        await commitState(ctx.cwd, state);
-        ctx.ui.setStatus('up', getStatusSummary(state));
-        ctx.ui.notify(`🔄 UP process started: "${state.systemName}"`, 'success');
-        pi.sendUserMessage(
-          `Execute /skill:up-orchestrator to create or refresh the Unified Process master plan for the system: ${state.systemName}`,
-          { deliverAs: 'followUp' }
+      if (visionFromArgs) {
+        const state = createInitialState(
+          deriveSystemNameFromVision(visionFromArgs),
+          visionFromArgs
         );
+        await commitState(ctx.cwd, state);
+        refreshUPUI(ctx, state);
+        ctx.ui.notify(`🔄 UP process started: "${state.systemName}"`, 'success');
+        if (isAutoTransitionEnabled()) {
+          dispatchUPCommand('/skill:up-orchestrator', ctx, 'UP auto-transition started');
+        } else {
+          pi.sendUserMessage(buildStartFollowUp(state), { deliverAs: 'followUp' });
+        }
         return;
       }
 
@@ -53,7 +108,7 @@ export function registerCommands(
 
       if (state) {
         const next = getNextActivity(state);
-        ctx.ui.setStatus('up', getStatusSummary(state));
+        refreshUPUI(ctx, state);
         ctx.ui.notify(
           `📐 UP process resumed: "${state.systemName}"
 Phase: ${state.currentPhase} | Iteration: ${state.currentIteration}
@@ -61,14 +116,16 @@ Next: ${next ?? 'COMPLETED'}
 Artifacts found: ${state.artifacts.length}`,
           'info'
         );
-        pi.sendUserMessage(
-          `Resume the Unified Process by executing /skill:up-orchestrator.
-System: "${state.systemName}"
-Current phase: ${state.currentPhase}
-Next activity: ${next ?? 'COMPLETED'}
-Known artifacts: ${state.artifacts.length}`,
-          { deliverAs: 'followUp' }
-        );
+        const effectiveResumeCommand = getEffectiveNextCommand(state) ?? '/skill:up-orchestrator';
+        if (isAutoTransitionEnabled()) {
+          if (getRecommendedNextCommand(state)) {
+            const clearedState = await consumeRecommendedNextCommandIfNeeded(ctx, state, commitState);
+            refreshUPUI(ctx, clearedState);
+          }
+          dispatchUPCommand(effectiveResumeCommand, ctx, 'UP auto-transition resumed');
+        } else {
+          pi.sendUserMessage(buildResumeFollowUp(state, next), { deliverAs: 'followUp' });
+        }
         return;
       }
 
@@ -77,16 +134,21 @@ Known artifacts: ${state.artifacts.length}`,
         'Describe the system to be developed (System Vision):'
       );
 
-      if (!vision?.trim()) return;
+      const normalizedVision = normalizeVisionText(vision ?? '');
+      if (!normalizedVision) return;
 
-      const newState = createInitialState(deriveSystemName(vision), vision);
-      await commitState(ctx.cwd, newState);
-      ctx.ui.setStatus('up', getStatusSummary(newState));
-      ctx.ui.notify(`🔄 UP process started: "${newState.systemName}"`, 'success');
-      pi.sendUserMessage(
-        `Execute /skill:up-orchestrator to start the Unified Process with the vision: ${vision}`,
-        { deliverAs: 'followUp' }
+      const newState = createInitialState(
+        deriveSystemNameFromVision(normalizedVision),
+        normalizedVision
       );
+      await commitState(ctx.cwd, newState);
+      refreshUPUI(ctx, newState);
+      ctx.ui.notify(`🔄 UP process started: "${newState.systemName}"`, 'success');
+      if (isAutoTransitionEnabled()) {
+        dispatchUPCommand('/skill:up-orchestrator', ctx, 'UP auto-transition started');
+      } else {
+        pi.sendUserMessage(buildStartFollowUp(newState), { deliverAs: 'followUp' });
+      }
     },
   });
 
@@ -107,16 +169,22 @@ Known artifacts: ${state.artifacts.length}`,
         ? state.artifacts.map((artifact) => `  • ${artifact.path}: ${artifact.title}`).join('\n')
         : '  (no artifacts generated yet)';
 
+      const recommendedNext = getRecommendedNextCommand(state);
       const message = [
         `📋 Unified Process: "${state.systemName}"`,
+        `Auto-transition: ${formatAutoMode(isAutoTransitionEnabled())}`,
         `Phase: ${state.currentPhase} | Iteration: ${state.currentIteration}`,
         `Completed activities: ${state.completedActivities.join(', ') || '(none)'}`,
         `Next activity: ${next ?? '✅ COMPLETED'}`,
+        `Recommended next command: ${recommendedNext ?? '(none)'}`,
+        ...(state.recommendedNextReason
+          ? [`Recommendation rationale: ${state.recommendedNextReason}`]
+          : []),
         `Generated artifacts (${state.artifacts.length}):`,
         artifacts,
       ].join('\n');
 
-      ctx.ui.setStatus('up', getStatusSummary(state));
+      refreshUPUI(ctx, state);
       ctx.ui.notify(message, 'info');
     },
   });
@@ -133,21 +201,62 @@ Known artifacts: ${state.artifacts.length}`,
         return;
       }
 
-      const next = getNextActivity(state);
-      if (!next) {
+      const recommendedNext = getRecommendedNextCommand(state);
+      const effectiveNextCommand = getEffectiveNextCommand(state);
+      if (!effectiveNextCommand) {
         ctx.ui.notify('✅ Unified Process completed! All artifacts have been generated.', 'success');
         return;
       }
 
-      ctx.ui.setStatus('up', getStatusSummary(state));
-      ctx.ui.notify(`▶️ Starting UP activity: ${next}`, 'info');
-      pi.sendUserMessage(
-        `Execute the Unified Process skill for activity "${next}".
-Use the command: /skill:up-${next}
-System: "${state.systemName}"
-Current phase: ${state.currentPhase}`,
-        { deliverAs: 'followUp' }
+      refreshUPUI(ctx, state);
+      ctx.ui.notify(
+        `▶️ Starting UP activity: ${recommendedNext ?? effectiveNextCommand}`,
+        'info'
       );
+      if (isAutoTransitionEnabled()) {
+        if (recommendedNext) {
+          const clearedState = await consumeRecommendedNextCommandIfNeeded(ctx, state, commitState);
+          refreshUPUI(ctx, clearedState);
+        }
+        dispatchUPCommand(effectiveNextCommand, ctx, `UP auto-transition → ${effectiveNextCommand}`);
+      } else {
+        pi.sendUserMessage(
+          [
+            `Execute the Unified Process next command: ${effectiveNextCommand}`,
+            `System: "${state.systemName}"`,
+            `Current phase: ${state.currentPhase}`,
+            ...(recommendedNext ? [`Recommendation rationale: ${state.recommendedNextReason || '(not provided)'}`] : []),
+          ].join('\n'),
+          { deliverAs: 'followUp' }
+        );
+      }
+    },
+  });
+
+  pi.registerCommand('up-auto', {
+    description: 'Toggle automatic UP stage transitions (usage: /up-auto [on|off|status])',
+    handler: async (args, ctx) => {
+      const normalized = args.trim().toLowerCase();
+
+      if (!normalized || normalized === 'toggle') {
+        const enabled = toggleAutoTransition(ctx);
+        ctx.ui.notify(`🤖 UP auto-transition: ${formatAutoMode(enabled)}`, 'info');
+        return;
+      }
+
+      if (normalized === 'status') {
+        ctx.ui.notify(`🤖 UP auto-transition: ${formatAutoMode(isAutoTransitionEnabled())}`, 'info');
+        return;
+      }
+
+      if (normalized === 'on' || normalized === 'off') {
+        const enabled = normalized === 'on';
+        setAutoTransitionEnabled(ctx, enabled);
+        ctx.ui.notify(`🤖 UP auto-transition: ${formatAutoMode(enabled)}`, 'info');
+        return;
+      }
+
+      ctx.ui.notify('Usage: /up-auto [on|off|status]', 'warning');
     },
   });
 

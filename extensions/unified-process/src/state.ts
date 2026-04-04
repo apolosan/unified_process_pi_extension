@@ -5,6 +5,7 @@
 
 import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, relative } from 'node:path';
+import { deriveSystemNameFromVision } from './system-name.ts';
 
 export type UPPhase = 'inception' | 'elaboration' | 'construction' | 'transition';
 
@@ -43,6 +44,8 @@ export interface UPState {
   currentIteration: number;
   completedActivities: UPActivity[];
   artifacts: UPArtifact[];
+  recommendedNextCommand: string | null;
+  recommendedNextReason: string;
   lastUpdated: number;
 }
 
@@ -75,6 +78,44 @@ export const ACTIVITY_ORDER: UPActivity[] = [
 ];
 
 export const PROJECT_STATE_RELATIVE_PATH = '.pi/unified-process/state.json';
+
+export function normalizeRecommendedNextCommand(command: unknown): string | null {
+  if (typeof command !== 'string') return null;
+
+  const trimmed = command.trim();
+  if (!trimmed) return null;
+
+  if (/^\/up-next$/i.test(trimmed)) return '/up-next';
+  if (/^\/skill:up-orchestrator$/i.test(trimmed)) return '/skill:up-orchestrator';
+
+  const activityMatch = trimmed.match(/^\/skill:up-([a-z-]+)$/i);
+  if (!activityMatch?.[1]) return null;
+
+  const activity = activityMatch[1].toLowerCase() as UPActivity;
+  if (!ACTIVITY_ORDER.includes(activity)) return null;
+
+  return `/skill:up-${activity}`;
+}
+
+export function getRecommendedNextCommand(state: UPState): string | null {
+  return normalizeRecommendedNextCommand(state.recommendedNextCommand);
+}
+
+export function clearRecommendedNextAction(state: UPState): UPState {
+  return normalizeState({
+    ...state,
+    recommendedNextCommand: null,
+    recommendedNextReason: '',
+  });
+}
+
+export function getEffectiveNextCommand(state: UPState): string | null {
+  const explicitNext = getRecommendedNextCommand(state);
+  if (explicitNext) return explicitNext;
+
+  const nextActivity = getNextActivity(state);
+  return nextActivity ? `/skill:up-${nextActivity}` : null;
+}
 
 const ARTIFACT_DEFINITIONS: ArtifactDefinition[] = [
   {
@@ -230,6 +271,8 @@ export function createInitialState(systemName: string, vision: string): UPState 
     currentIteration: 1,
     completedActivities: [],
     artifacts: [],
+    recommendedNextCommand: null,
+    recommendedNextReason: '',
     lastUpdated: Date.now(),
   });
 }
@@ -331,6 +374,8 @@ export async function inferStateFromProject(cwd: string): Promise<UPState | null
   const visionText = await safeReadFile(join(docsRoot, '01-vision.md'));
   const visionSummary = extractVisionSummary(planText) ?? extractVisionSummary(visionText) ?? '';
   const currentIteration = extractCurrentIteration(planText) ?? 1;
+  const recommendedNextCommand = extractRecommendedNextCommand(planText);
+  const recommendedNextReason = extractRecommendedNextReason(planText) ?? '';
   const lastUpdated = Math.max(...artifacts.map((artifact) => artifact.generated));
   const systemName = deriveRecoveredSystemName(visionSummary || visionText || planText || 'Recovered UP Project');
 
@@ -340,6 +385,8 @@ export async function inferStateFromProject(cwd: string): Promise<UPState | null
     currentIteration,
     completedActivities: [...completed],
     artifacts: artifacts.sort((a, b) => a.generated - b.generated),
+    recommendedNextCommand,
+    recommendedNextReason,
     lastUpdated,
   });
 }
@@ -373,6 +420,12 @@ export async function restoreStateForProject(
     currentIteration: Math.max(...states.map((state) => state.currentIteration || 1)),
     completedActivities: normalizeActivities(states.flatMap((state) => state.completedActivities)),
     artifacts: mergedArtifacts,
+    recommendedNextCommand:
+      states.find((state) => getRecommendedNextCommand(state))?.recommendedNextCommand ??
+      base.recommendedNextCommand,
+    recommendedNextReason:
+      states.find((state) => state.recommendedNextReason.trim())?.recommendedNextReason ??
+      base.recommendedNextReason,
     lastUpdated: Math.max(...states.map((state) => state.lastUpdated || 0)),
   });
 }
@@ -446,6 +499,9 @@ export function normalizeState(input: Partial<UPState>): UPState {
     currentIteration: Math.max(1, Number(input.currentIteration ?? 1)),
     completedActivities,
     artifacts: normalizeArtifacts(input.artifacts),
+    recommendedNextCommand: normalizeRecommendedNextCommand(input.recommendedNextCommand),
+    recommendedNextReason:
+      typeof input.recommendedNextReason === 'string' ? input.recommendedNextReason.trim() : '',
     lastUpdated: Number(input.lastUpdated ?? Date.now()),
   };
 }
@@ -465,6 +521,14 @@ export function applyStateUpdates(
     completedActivities: mergedActivities,
     artifacts: Array.isArray(updates.artifacts) ? updates.artifacts : state.artifacts,
     currentIteration: updates.currentIteration ?? state.currentIteration,
+    recommendedNextCommand:
+      updates.recommendedNextCommand === undefined
+        ? state.recommendedNextCommand
+        : updates.recommendedNextCommand,
+    recommendedNextReason:
+      updates.recommendedNextReason === undefined
+        ? state.recommendedNextReason
+        : updates.recommendedNextReason,
     lastUpdated: Date.now(),
   });
 }
@@ -551,12 +615,7 @@ function deriveRecoveredSystemName(source: string): string {
     .replace(/\s+/g, ' ')
     .trim();
 
-  if (!cleaned) return 'Recovered UP Project';
-
-  return cleaned
-    .split(/\s+/)
-    .slice(0, 6)
-    .join(' ');
+  return deriveSystemNameFromVision(cleaned || 'Recovered UP Project');
 }
 
 function extractVisionSummary(content: string): string | null {
@@ -577,6 +636,26 @@ function extractCurrentIteration(content: string): number | null {
 
   const iteration = Number(match[1]);
   return Number.isFinite(iteration) && iteration > 0 ? iteration : null;
+}
+
+function extractRecommendedNextCommand(content: string): string | null {
+  const match = content.match(/recommended next command:\*\*\s*([^\n]+)/i);
+  if (match?.[1]?.trim()) return normalizeRecommendedNextCommand(match[1].trim());
+
+  const fallback = content.match(/recommended next command:\s*([^\n]+)/i);
+  if (fallback?.[1]?.trim()) return normalizeRecommendedNextCommand(fallback[1].trim());
+
+  return null;
+}
+
+function extractRecommendedNextReason(content: string): string | null {
+  const match = content.match(/recommendation rationale:\*\*\s*([^\n]+)/i);
+  if (match?.[1]?.trim()) return match[1].trim();
+
+  const fallback = content.match(/recommendation rationale:\s*([^\n]+)/i);
+  if (fallback?.[1]?.trim()) return fallback[1].trim();
+
+  return null;
 }
 
 async function safeReadFile(path: string): Promise<string> {

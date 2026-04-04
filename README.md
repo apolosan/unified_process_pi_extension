@@ -44,7 +44,10 @@ Registered commands:
 - `/up`
 - `/up-status`
 - `/up-next`
+- `/up-auto`
 - `/up-artifacts`
+
+The extension footer/status now also shows the effective next UP command in real time (`up:next`). When the orchestrator persists an explicit recommendation, the extension also renders a compact widget above the editor with the recommended command and rationale, varying the label by recommendation type (forward progression, refinement, jump, coordination, risk-aware).
 
 Registered tools:
 - `up_save_artifact`

@@ -36,10 +36,11 @@ Canonical public package paths:
 
 | Command | Description |
 |---|---|
-| `/up [system vision]` | Starts a new UP process with the provided vision |
+| `/up [system vision]` | Starts a new UP process with the provided vision. The full text after `/up` is preserved as the authoritative vision, the initial system name is heuristically derived from the whole prompt, and the orchestrator must canonically refine/persist `systemName` after reading the full vision. |
 | `/up` | Intelligently resumes an existing UP process from session state, project state, or `docs/up/` artifacts; if found, it re-invokes the orchestrator |
-| `/up-status` | Displays the full state: phase, iteration, activities, and artifacts |
+| `/up-status` | Displays the full state: phase, iteration, activities, artifacts, and auto-transition mode |
 | `/up-next` | Advances to the next pending UP activity |
+| `/up-auto [on\|off\|status]` | Toggles or inspects automatic UP stage transitions |
 | `/up-artifacts` | Lists and browses the generated artifacts |
 
 ---
@@ -84,7 +85,25 @@ Canonical public package paths:
 /up Online Bookstore E-Commerce System
 ```
 
-pi will start the process and automatically invoke `/skill:up-orchestrator`.
+pi will start the process, preserve the complete prompt as the authoritative System Vision, derive an initial system name from the whole request, and automatically invoke `/skill:up-orchestrator`, which must validate and persist the canonical `systemName` after reading the full vision.
+
+### Automatic Transition Mode
+
+Use `/up-auto on` to enable automatic progression, or toggle it with any of these shortcuts:
+
+- `CTRL+SHIFT+Y`
+- `CTRL+SHIFT+N`
+- `CTRL+SHIFT+T`
+
+When automatic transition mode is enabled:
+- `/up` starts/resumes the process and immediately dispatches `/skill:up-orchestrator`
+- the orchestrator should persist the explicit next action in state using `recommendedNextCommand` and `recommendedNextReason`
+- after a state-changing UP skill finishes, the extension follows that explicit recommendation first; if none exists, it falls back to the linear next `/skill:up-[activity]`
+- this allows refinement-aware loops such as returning from implementation to contracts, object design, or requirements when the orchestrator decides an upstream revision is necessary
+- the agent should stop asking the user to manually invoke the next UP command unless the flow pauses because no UP artifact/state update was detected or because an explicit next command would create a blind self-loop
+- the footer/status area shows the effective next command in real time; an explicit orchestrator recommendation is marked with `★`
+- when an explicit recommendation exists, a compact widget above the editor shows the recommended command and its rationale
+- the widget now varies by recommendation type, distinguishing forward progression, upstream refinement, non-linear jumps, coordination/orchestrator returns, and risk-aware recommendations
 
 ### Manual Step-by-Step Flow
 
