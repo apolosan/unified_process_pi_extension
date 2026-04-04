@@ -166,17 +166,9 @@ export default function unifiedProcessExtension(pi: ExtensionAPI): void {
     return lines;
   };
   const refreshUPUI = (ctx: ExtensionContext, state: UPState | null = currentState): void => {
-     ctx.ui.setStatus('up:auto', autoTransitionEnabled ? '🤖 UP AUTO' : '🤖 UP MANUAL');
-     ctx.ui.setStatus('up:next', formatRecommendedNextStatus(state));
--    ctx.ui.setWidget('up:recommendation', buildRecommendationWidgetLines(state));
-+    ctx.ui.setWidget('up:recommendation', buildRecommendationWidgetLines(ctx, state));
-
-     if (!state) return;
-     ctx.ui.setStatus('up', getStatusSummary(state));
-   };
     ctx.ui.setStatus('up:auto', autoTransitionEnabled ? '🤖 UP AUTO' : '🤖 UP MANUAL');
     ctx.ui.setStatus('up:next', formatRecommendedNextStatus(state));
-    ctx.ui.setWidget('up:recommendation', buildRecommendationWidgetLines(state));
+    ctx.ui.setWidget('up:recommendation', buildRecommendationWidgetLines(ctx, state));
 
     if (!state) return;
     ctx.ui.setStatus('up', getStatusSummary(state));

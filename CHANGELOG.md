@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.1.3] - 2026-04-04
+
+### Fixed
+- Removed an accidentally committed diff hunk from `extensions/unified-process/index.ts` that made the published extension fail to parse during pi startup.
+- Restored the `up:recommendation` widget refresh path so the extension loads correctly again.
+
+### Added
+- Added `scripts/verify-extension-syntax.mjs` to scan extension source files for patch artifacts and TypeScript parse errors.
+- Wired `npm run check` into `prepublishOnly` so malformed extension sources block future npm publishes.
+
 ## [1.1.2] - 2026-04-04
 
 ### Added
