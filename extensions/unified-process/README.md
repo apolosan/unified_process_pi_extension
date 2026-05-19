@@ -45,6 +45,21 @@ Canonical public package paths:
 
 ---
 
+## Custom Tools
+
+| Tool | Description |
+|---|---|
+| `up_save_artifact` | Saves markdown artifacts under `docs/up/` and updates UP state |
+| `up_load_artifact` | Loads artifact content from `docs/up/` |
+| `up_update_state` | Updates phase, completed activities, and recommended next command |
+| `up_list_artifacts` | Lists generated artifacts (optional phase filter) |
+| `up_record_integration_check` | Records smoke/integration evidence in `docs/up/14-implementation/smoke.log` |
+| `up_require_paths` | Validates required integration paths (API, tests, matrix, operations, `.env.example`) |
+
+**Integration workflow:** run stack/smoke/e2e commands → `up_record_integration_check` → widget shows last verification status.
+
+---
+
 ## Unified Process Skills
 
 | Skill | UP Phase | Generated Artifacts |
@@ -157,6 +172,7 @@ docs/up/
 ├── 06-contracts/
 │   └── CONTRACT-createOrder.md # System operation contract (OCL informal)
 ├── 06-contracts-summary.md     # Summary of all contracts
+├── 12b-integration-matrix.md   # UI ↔ operation ↔ endpoint ↔ auth traceability
 ├── 11-tech-research.md 🔍    # Technology Research Report (current sources, CVEs, benchmarks)
 ├── 11-tech-stack.md  ⚠️         # Tech Stack Decision (LOCKED before TDD)
 ├── 10-tdd-plan.md  ⚠️          # TDD Plan (LOCKED before any downstream construction design or implementation begins)

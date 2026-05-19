@@ -86,7 +86,8 @@ Load and review all completed artifacts:
 | **Integration** | Validate collaboration between two or more classes/modules | System operations, sequence diagrams |
 | **Component** | Test a self-contained domain component (e.g., Order subsystem) | Use case groups |
 | **Frontend / UI** | Validate interface behavior: navigation, form validation, feedback | Interface design (`08-interface-design.md`) |
-| **End-to-End (E2E)** | Simulate complete user journey from first interaction to outcome | Main flow of each use case |
+| **End-to-End (E2E) — Tier 1 (integrated)** | Full-stack user journey with real API, DB, and UI | Main flow of each P0 use case; requires stack up |
+| **End-to-End (E2E) — Tier 2 (contract)** | Schema/request-response validation; mocks allowed | API contracts from `06-contracts/`; supplements Tier 1 |
 | **Performance** | Validate SLAs: response time, throughput, concurrency | Non-functional requirements |
 | **Load** | Verify behavior under expected peak load | Non-functional requirements |
 | **Stress** | Find breaking point under beyond-peak load | Non-functional requirements |
@@ -99,7 +100,9 @@ Load and review all completed artifacts:
 | **Property-Based** | Generate random inputs to find edge cases | Any function with a broad input domain |
 | **Snapshot** | Capture and lock UI or output structure against unintended changes | Interface artifacts |
 
-> **Mandatory minimum:** Unit, Integration, E2E, and one non-functional type (performance, security, or accessibility) must be present for EVERY system. The others must be justified as "not applicable" if excluded.
+> **Mandatory minimum:** Unit, Integration, **Tier 1 integrated E2E** (P0 flows), **Tier 2 contract E2E** (where APIs exist), and one non-functional type (performance, security, or accessibility) must be present for EVERY system. Label each E2E spec with its tier in `docs/up/10-tests/e2e-tests.md`. The others must be justified as "not applicable" if excluded.
+>
+> **Gate order:** Smoke → Tier 1 integrated e2e → Tier 2 contract e2e → NFR tests. Deploy readiness requires Tier 1 green + `smoke.log` with `exit_code: 0`.
 
 ### 2.2 Coverage Targets
 

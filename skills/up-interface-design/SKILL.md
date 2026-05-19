@@ -109,6 +109,23 @@ The following MCPs are configured and available for the Design System activity t
 
 ---
 
+## Integration Hooks (Traceability Fields) — Optional per Screen
+
+For each screen (or Operation Unit), add optional fields in `docs/up/08-interface-design.md` to bridge UI design to backend execution. These feed `docs/up/12b-integration-matrix.md` during elaboration/construction:
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| `operationId` | System operation from `04-system-operations.md` | `registerUser` |
+| `inputs` | Data collected or selected on this screen | `email, password` |
+| `outputs` | Data displayed after operation | `userId, sessionToken` |
+| `sideEffects` | Persistence or external calls | `create User record` |
+| `domainEvents` | Events emitted for downstream flows | `UserRegistered` |
+| `httpHint` | Optional method + path for matrix | `POST /api/v1/users` |
+
+> Implementation code lives in `PROJECT_ROOT/src/` — not under `docs/up/14-implementation/` (that path is for logs and summaries only).
+
+---
+
 ## Step-by-Step Execution
 
 ### 1. Organize by Actor

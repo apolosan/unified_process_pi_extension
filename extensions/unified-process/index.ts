@@ -11,15 +11,23 @@
  *   /up-artifacts     - List and browse generated artifacts
  *
  * Registered tools:
- *   up_save_artifact  - Save an artifact to docs/up/
- *   up_load_artifact  - Load an artifact from docs/up/
- *   up_update_state   - Update the UP state
- *   up_list_artifacts - List generated artifacts
+ *   up_save_artifact              - Save an artifact to docs/up/
+ *   up_load_artifact              - Load an artifact from docs/up/
+ *   up_update_state               - Update the UP state
+ *   up_list_artifacts             - List generated artifacts
+ *   up_record_integration_check   - Record smoke/integration evidence
+ *   up_require_paths              - Validate required integration paths
  */
 
 import type { ExtensionAPI, ExtensionContext } from '@mariozechner/pi-coding-agent';
 import { registerTools } from './src/tools.ts';
 import { registerCommands } from './src/commands.ts';
+import { buildUPAgentContext } from './src/agent-context.ts';
+import {
+  formatIntegrationVerificationStatus,
+  readIntegrationEvidence,
+  type IntegrationEvidence,
+} from './src/integration-evidence.ts';
 import {
   ACTIVITY_ORDER,
   clearRecommendedNextAction,
@@ -76,6 +84,7 @@ export default function unifiedProcessExtension(pi: ExtensionAPI): void {
   let currentState: UPState | null = null;
   let autoTransitionEnabled = false;
   let activeAutoTransition: ActiveAutoTransition | null = null;
+  let integrationEvidence: IntegrationEvidence | null = null;
 
   const getState = (): UPState | null => currentState;
   const setState = (state: UPState): void => {
@@ -165,13 +174,38 @@ export default function unifiedProcessExtension(pi: ExtensionAPI): void {
 
     return lines;
   };
+  const refreshIntegrationEvidence = async (cwd: string): Promise<void> => {
+    integrationEvidence = await readIntegrationEvidence(cwd);
+  };
+  const buildIntegrationWidgetLines = (ctx: ExtensionContext): string[] | undefined => {
+    if (!integrationEvidence) return undefined;
+    const theme = ctx.ui.theme;
+    const label = formatIntegrationVerificationStatus(integrationEvidence);
+    const tone =
+      integrationEvidence.status === 'ok'
+        ? 'success'
+        : integrationEvidence.status === 'fail'
+          ? 'warning'
+          : 'muted';
+    return [theme.fg(tone, `🔌 ${label}`)];
+  };
   const refreshUPUI = (ctx: ExtensionContext, state: UPState | null = currentState): void => {
     ctx.ui.setStatus('up:auto', autoTransitionEnabled ? '🤖 UP AUTO' : '🤖 UP MANUAL');
     ctx.ui.setStatus('up:next', formatRecommendedNextStatus(state));
     ctx.ui.setWidget('up:recommendation', buildRecommendationWidgetLines(ctx, state));
+    ctx.ui.setWidget('up:integration', buildIntegrationWidgetLines(ctx));
 
     if (!state) return;
     ctx.ui.setStatus('up', getStatusSummary(state));
+    if (integrationEvidence) {
+      const short =
+        integrationEvidence.status === 'ok'
+          ? '✅ smoke'
+          : integrationEvidence.status === 'fail'
+            ? '⚠️ smoke'
+            : '⏳ smoke';
+      ctx.ui.setStatus('up:smoke', short);
+    }
   };
   const updateAutoTransitionUI = (ctx: ExtensionContext): void => {
     refreshUPUI(ctx);
@@ -203,6 +237,7 @@ export default function unifiedProcessExtension(pi: ExtensionAPI): void {
     currentState = await restoreStateForProject(ctx.cwd, entries);
     autoTransitionEnabled = restoreAutoTransitionMode(entries);
     activeAutoTransition = null;
+    await refreshIntegrationEvidence(ctx.cwd);
     refreshUPUI(ctx, currentState);
 
     if (!currentState) {
@@ -227,57 +262,15 @@ export default function unifiedProcessExtension(pi: ExtensionAPI): void {
     }
   });
 
-  pi.on('before_agent_start', async (event) => {
+  pi.on('before_agent_start', async (event, ctx) => {
     if (!currentState) return;
 
-    const next = getNextActivity(currentState);
-    const artifactsList = currentState.artifacts.length
-      ? currentState.artifacts
-          .map((artifact) => `- ${artifact.path}: ${artifact.title} [${artifact.phase}]`)
-          .join('\n')
-      : '(no artifacts generated yet)';
+    await refreshIntegrationEvidence(ctx.cwd);
+    refreshUPUI(ctx, currentState);
 
-    const upContext = [
-      '',
-      '## Unified Process (UP) Context',
-      `**System:** ${currentState.systemName}`,
-      '**Authoritative system vision:**',
-      currentState.vision || '(not provided)',
-      '',
-      `**Automatic transition mode:** ${autoTransitionEnabled ? 'ENABLED — do not ask the user to invoke the next UP command manually when a stage is completed; the extension will continue the flow.' : 'DISABLED — recommend the next UP command to the user as usual.'}`,
-      `**Explicit recommended next command:** ${getRecommendedNextCommand(currentState) ?? '(none)'}`,
-      ...(currentState.recommendedNextReason
-        ? [`**Recommendation rationale:** ${currentState.recommendedNextReason}`]
-        : []),
-      `**Phase:** ${currentState.currentPhase} | **Iteration:** ${currentState.currentIteration}`,
-      `**Next activity:** ${next ?? '✅ PROCESS COMPLETED'}`,
-      `**Completed activities:** ${currentState.completedActivities.join(', ') || '(none)'}`,
-      `**Generated artifacts (${currentState.artifacts.length}):**`,
-      artifactsList,
-      '',
-      '**Available UP tools:** up_save_artifact, up_load_artifact, up_update_state, up_list_artifacts',
-      '**Available UP skills:** /skill:up-orchestrator, /skill:up-5w2h (Step 0 for ALL activities),',
-      '/skill:up-vision, /skill:up-requirements, /skill:up-use-cases, /skill:up-sequence-diagrams,',
-      '/skill:up-conceptual-model, /skill:up-contracts,',
-      '/skill:up-tech-stack (MANDATORY gate 1: stack locked after Contracts — detects requester tech level),',
-      '/skill:up-tdd (MANDATORY gate 2: full test battery — uses tools from 11-tech-stack.md),',
-      '/skill:up-design-patterns (gate 3: MCP design-patterns + internet research — patterns feed the DCD),',
-      '/skill:up-object-design, /skill:up-interface-design,',
-      '/skill:up-design-system (last design activity: shadcn/radix/flyonui MCPs — research + select + generate UI code),',
-      '/skill:up-data-mapping,',
-      '/skill:up-implementation (FINAL Construction: generate full application code; maintain 100% TDD green gate; iterate upstream on design gaps),',
-      '/skill:up-deploy (FIRST Transition: deploy to homologation/pre-production/production with smoke tests and rollback),',
-      '/skill:up-documentation (LAST Transition: generate full documentation set from UP artifacts, implementation, and deploy evidence using MCP/CLI tools such as mmdc),',
-      '**IMPORTANT — System Naming Protocol:** when a process starts or resumes, read the authoritative vision first and persist the canonical systemName with up_update_state if the current name is provisional, truncated, or improvable.',
-      '**IMPORTANT — Next Action Protocol:** when /skill:up-orchestrator decides what must happen next, it should persist `recommendedNextCommand` and `recommendedNextReason` with up_update_state before saving/updating the process plan. Use this explicit recommendation for refinement loops, upstream returns, and non-linear iteration.',
-      '**IMPORTANT — Tech Stack:** collect tech signals throughout ALL phases (language/framework/infra mentions, team skills, domain constraints).',
-      '**IMPORTANT — TDD Rules:** no implementation before the test battery is locked; tests are immutable unless a real artifact inconsistency is proven.',
-      '**IMPORTANT — Iteration Protocol:** if implementation reveals a design gap, return to the appropriate upstream activity, regenerate downstream artifacts, then resume implementation.',
-      '**IMPORTANT — Deployment Protocol:** never deploy to production without explicit requester approval. Default target is homologation.',
-      '**IMPORTANT — Documentation Protocol:** final documentation should be generated from authoritative artifacts and real outputs; render Mermaid diagrams when possible.',
-      '**IMPORTANT:** every activity must begin with a 5W2H analysis.',
-      '',
-    ].join('\n');
+    const upContext = buildUPAgentContext(currentState, {
+      autoTransitionEnabled,
+    });
 
     return { systemPrompt: event.systemPrompt + upContext };
   });
@@ -298,7 +291,15 @@ export default function unifiedProcessExtension(pi: ExtensionAPI): void {
   });
 
   pi.on('tool_execution_end', async (event, ctx) => {
-    if (event.toolName === 'up_save_artifact' || event.toolName === 'up_update_state') {
+    if (event.toolName === 'up_record_integration_check') {
+      await refreshIntegrationEvidence(ctx.cwd);
+    }
+
+    if (
+      event.toolName === 'up_save_artifact' ||
+      event.toolName === 'up_update_state' ||
+      event.toolName === 'up_record_integration_check'
+    ) {
       refreshUPUI(ctx);
     }
 
@@ -376,7 +377,9 @@ export default function unifiedProcessExtension(pi: ExtensionAPI): void {
     });
   }
 
-  registerTools(pi, getState, setState, ensureState, commitState);
+  registerTools(pi, getState, setState, ensureState, commitState, async (cwd) => {
+    await refreshIntegrationEvidence(cwd);
+  });
   registerCommands(
     pi,
     getState,

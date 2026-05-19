@@ -8,6 +8,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import type { ExtensionAPI } from '@mariozechner/pi-coding-agent';
 import type { UPArtifact, UPState } from './state.ts';
+import { recordIntegrationCheck, requirePaths } from './integration-tools.ts';
 import { applyStateUpdates, inferArtifactMetadata } from './state.ts';
 
 export function registerTools(
@@ -15,7 +16,8 @@ export function registerTools(
   getState: () => UPState | null,
   _setState: (s: UPState) => void,
   ensureState: (cwd: string, entries?: any[]) => Promise<UPState | null>,
-  commitState: (cwd: string, state: UPState) => Promise<void>
+  commitState: (cwd: string, state: UPState) => Promise<void>,
+  onIntegrationEvidenceChanged?: (cwd: string) => Promise<void>
 ): void {
   pi.registerTool({
     name: 'up_save_artifact',
@@ -172,6 +174,111 @@ export function registerTools(
       return {
         content: [{ type: 'text', text: list }],
         details: { artifacts },
+      };
+    },
+  });
+
+  pi.registerTool({
+    name: 'up_record_integration_check',
+    label: 'UP Record Integration Check',
+    description:
+      'Records integration/smoke verification evidence (command, exit code, timestamp) in docs/up/14-implementation/smoke.log. Does not run commands — execute the command separately, then record the result.',
+    promptSnippet: 'Record smoke/integration check evidence to smoke.log',
+    parameters: Type.Object({
+      command: Type.String({
+        description: 'Exact command that was executed (e.g. npm run test:smoke)',
+      }),
+      exitCode: Type.Number({
+        description: 'Process exit code (0 = success)',
+      }),
+      notes: Type.Optional(
+        Type.String({ description: 'Optional one-line summary of the run' })
+      ),
+      append: Type.Optional(
+        Type.Boolean({
+          description: 'Append to smoke.log (default true). Set false to replace the log.',
+        })
+      ),
+    }),
+    async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+      const result = await recordIntegrationCheck(ctx.cwd, {
+        command: params.command,
+        exitCode: params.exitCode,
+        notes: params.notes,
+        append: params.append,
+      });
+
+      await onIntegrationEvidenceChanged?.(ctx.cwd);
+
+      const summary = [
+        `Integration evidence recorded: ${result.path}`,
+        `status: ${result.status}`,
+        `exit_code: ${result.exitCode}`,
+        `timestamp: ${result.timestamp}`,
+        `command: ${result.command}`,
+        ...(result.notes ? [`notes: ${result.notes}`] : []),
+      ].join('\n');
+
+      return {
+        content: [{ type: 'text', text: summary }],
+        details: result,
+      };
+    },
+  });
+
+  pi.registerTool({
+    name: 'up_require_paths',
+    label: 'UP Require Paths',
+    description:
+      'Validates that key integration files exist (API surface, tests, .env.example, integration matrix, system operations). Fails by default when paths are missing.',
+    promptSnippet: 'Verify required integration paths exist before implementation/deploy',
+    parameters: Type.Object({
+      paths: Type.Optional(
+        Type.Array(Type.String(), {
+          description:
+            'Optional flat list of required paths. When omitted, uses default path groups with alternatives (src/api|app/api, tests/e2e|tests/integration, etc.).',
+        })
+      ),
+      strict: Type.Optional(
+        Type.Boolean({
+          description: 'When true (default), fail if any required path/group is missing.',
+        })
+      ),
+    }),
+    async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+      const groups = params.paths?.length
+        ? params.paths.map((path, index) => ({
+            id: `custom-${index}`,
+            label: path,
+            alternatives: [path],
+          }))
+        : undefined;
+
+      const result = await requirePaths(ctx.cwd, {
+        groups,
+        strict: params.strict,
+      });
+
+      const lines = [
+        result.ok ? 'All required integration paths are present.' : 'Some required paths are missing.',
+        '',
+        'Present:',
+        ...(result.present.length
+          ? result.present.map((entry) => `- ${entry.label}: \`${entry.matched}\``)
+          : ['- (none)']),
+        '',
+        'Missing:',
+        ...(result.missing.length
+          ? result.missing.map(
+              (entry) =>
+                `- ${entry.label}: expected one of ${entry.alternatives.map((p) => `\`${p}\``).join(', ')}`
+            )
+          : ['- (none)']),
+      ];
+
+      return {
+        content: [{ type: 'text', text: lines.join('\n') }],
+        details: result,
       };
     },
   });

@@ -141,7 +141,7 @@ The **Construction phase** does NOT begin with implementation code. It begins wi
 
 **Iteration rule:** if implementation reveals a design gap rather than a local code defect, return to the appropriate upstream activity, fix the artifact, regenerate affected downstream artifacts, and only then resume implementation.
 
-**Transition phase:** `/skill:up-deploy` deploys the already test-passing system to the selected environment and runs smoke tests plus vision-alignment verification.
+**Transition phase:** `/skill:up-deploy` deploys the already test-passing system to the selected environment and runs smoke tests plus vision-alignment verification. **Deploy readiness gate:** do not advance to deploy until `docs/up/14-implementation/smoke.log` records successful smoke + Tier 1 integrated e2e (`exit_code: 0`).
 
 **Finalization phase within Transition:** `/skill:up-documentation` consolidates all UP, implementation, and deployment artifacts into a complete documentation bundle, rendering Mermaid diagrams via CLI tools such as `mmdc` whenever available.
 

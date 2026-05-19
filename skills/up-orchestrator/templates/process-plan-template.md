@@ -59,7 +59,7 @@
 > 💻 **Implementation Gate:** All design artifacts complete. Now generate the FULL application code and ensure ALL TDD tests pass. Iteration protocol active: design gaps found must be resolved before proceeding.
 
 - [ ] **5W2H — Implementation** → `up-5w2h` analysis for implementation strategy → `docs/up/5w2h/5W2H-implementation.md`
-- [ ] **Implementation & Code Generation** → `/skill:up-implementation` → `docs/up/14-implementation/` (100% TDD green gate required)
+- [ ] **Implementation & Code Generation** → `/skill:up-implementation` → `PROJECT_ROOT/src/` + `PROJECT_ROOT/tests/` (100% TDD green; Tier 1 integrated e2e; logs in `docs/up/14-implementation/`)
 
 ---
 

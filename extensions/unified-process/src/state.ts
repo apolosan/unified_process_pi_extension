@@ -177,6 +177,12 @@ const ARTIFACT_DEFINITIONS: ArtifactDefinition[] = [
     completedActivity: 'contracts',
   },
   {
+    matches: (artifactPath) => artifactPath === '12b-integration-matrix.md',
+    phase: 'elaboration',
+    activity: 'contracts',
+    title: 'Integration Matrix (UI ↔ API ↔ Operations)',
+  },
+  {
     matches: (artifactPath) =>
       artifactPath === '11-tech-stack.md' || artifactPath === '11-tech-research.md',
     phase: 'construction',

@@ -458,19 +458,26 @@ VERIFY: API tests PASS (Green Phase ✅)
 ```
 NOW THAT TESTS EXIST AND FAIL (Red Phase):
 
-For each screen in interface design (from `docs/up/13-ui-code/` + `docs/up/08-interface-design.md`):
-  1. Copy/import component from `docs/up/13-ui-code/components/screens/[Screen].tsx` to PROJECT_ROOT/src/ui/
-  2. Replace mock data with real API calls
-  3. Connect form submissions to corresponding API endpoint
-  4. Implement navigation flows from `docs/up/08-interface-design.md` flowchart
-  5. Apply design tokens from `docs/up/13-ui-code/tokens/`
+For each screen in interface design (from `docs/up/08-interface-design.md` + design system output in `docs/up/13-ui-code/`):
+  1. Import UI from a **workspace package or path alias** (e.g. `@app/ui`) — do **not** copy-paste components into `src/` without version control
+  2. If no package exists yet, generate screens directly under `PROJECT_ROOT/src/ui/` using design-system MCP output as reference only
+  3. Replace mock data with real API calls (map each screen to `docs/up/12b-integration-matrix.md`)
+  4. Connect form submissions to corresponding API endpoint (operationId from integration hooks)
+  5. Implement navigation flows from `docs/up/08-interface-design.md` flowchart
+  6. Apply design tokens from design system (`docs/up/13-design-system.md` / `docs/up/13-ui-code/tokens/`)
 
 VERIFY: Frontend tests PASS (Green Phase ✅)
 ```
 
+> ### ⏱️ VISUAL QUALITY TIMING CONSTRAINT — MANDATORY
+>
+> **D1–D6 evaluation begins ONLY after Tier 1 integrated e2e passes.**
+>
+> Functional smoke and Tier 1 e2e must be green before visual polish. If D1–D6 work is marked done while Tier 1 e2e fails, that visual work is **not accepted**.
+>
 > ### 🎨 UI/UX DESIGN QUALITY GATE — MANDATORY (D1–D6)
 >
-> **During Frontend Integration, the agent MUST apply the following visual quality directives in addition to passing tests.**
+> **After Tier 1 e2e passes, the agent MUST apply the following visual quality directives in addition to passing tests.**
 > These are not decorative guidelines — they are rejection criteria. If the UI is functionally correct but visually mediocre, it is NOT done.
 >
 > **D1 — Component Mix (Discovery via MCP)**
@@ -530,10 +537,27 @@ VERIFY: Frontend tests PASS (Green Phase ✅)
 
 ### Step 3.2.6: End-to-End Validation — GREEN Phase (Validate All)
 
+#### E2E Test Tiers — MANDATORY DISTINCTION
+
+**Tier 1: Integrated e2e** (REQUIRED for P0 use cases)
+- **Requires:** Full stack up (API server + database + UI running)
+- **Purpose:** Verify end-to-end flows with real data, real network, real persistence
+- **Execution:** `npm run test:e2e:integrated` or equivalent from `docs/up/11-tech-stack.md`
+- **Evidence:** Exit code 0; log commands and results in `docs/up/14-implementation/smoke.log` (use tool `up_record_integration_check` after running commands)
+- **Blocking:** Implementation is **not** complete until Tier 1 passes for all P0 rows in `docs/up/12b-integration-matrix.md`
+
+**Tier 2: Contract e2e** (schema validation; supplements Tier 1)
+- **Requires:** API schema defined (OpenAPI, tRPC, or pact contracts)
+- **Purpose:** Verify request/response contracts without full stack (mocks/stubs allowed)
+- **Execution:** `npm run test:e2e:contract` or `pact verify` or equivalent
+- **Blocking:** Does **not** replace Tier 1 for deploy readiness; required before production when Tier 1 cannot run in CI
+
+> **Anti-pseudo-rigor:** Tests green with mocks only ≠ integration verified. Always distinguish Tier 1 vs Tier 2 in test reports.
+
 ```
 NOW THAT ALL TESTS EXIST AND MOST SHOULD BE PASSING:
 
-RUN ALL E2E TESTS from docs/up/10-tests/e2e-tests.md:
+RUN E2E TESTS from docs/up/10-tests/e2e-tests.md (Tier 1 first, then Tier 2):
   For each main use case flow:
   1. Start the full application stack
   2. Execute user journey from login to completion

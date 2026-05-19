@@ -1,7 +1,7 @@
 # Deployment Configuration — [System Name]
 
 > **Target Environment:** [Homologation / Pre-Production / Production]
-> **Implementation Source:** `docs/up/14-implementation/`
+> **Implementation Source:** `PROJECT_ROOT/src/` (runtime code) — evidence/logs in `docs/up/14-implementation/smoke.log`
 > **Tech Stack:** `docs/up/11-tech-stack.md`
 > **Date:** [date] | **Approved by:** [requester / not required]
 
