@@ -1,5 +1,7 @@
 # Unified Process pi Extension
 
+**Version:** `1.2.0`
+
 Pi package that bundles an Object-Oriented Unified Process workflow for the **pi coding agent**.
 
 It ships:
@@ -49,11 +51,15 @@ Registered commands:
 
 The extension footer/status now also shows the effective next UP command in real time (`up:next`). When the orchestrator persists an explicit recommendation, the extension also renders a compact widget above the editor with the recommended command and rationale, varying the label by recommendation type (forward progression, refinement, jump, coordination, risk-aware).
 
+**Integration verification (v1.2.0):** before declaring implementation or deploy ready, the agent receives a mandatory integration checklist. Run smoke/Tier 1 e2e commands, then record evidence with `up_record_integration_check`. The footer/widget shows `last integrated verification: OK/FAIL/MISSING` from `docs/up/14-implementation/smoke.log`.
+
 Registered tools:
 - `up_save_artifact`
 - `up_load_artifact`
 - `up_update_state`
 - `up_list_artifacts`
+- `up_record_integration_check` — record command, exit code, and timestamp to `smoke.log`
+- `up_require_paths` — validate required integration paths (API, tests, matrix, operations, env template)
 
 ### Skills
 
@@ -174,7 +180,8 @@ up-deps check
 
 ```bash
 npm run deps:scan
-npm run check
+npm run check   # dependency scan + extension syntax + 22 unit tests
+npm test        # extension unit tests only
 ```
 
 ### Install known auto-installable dependencies

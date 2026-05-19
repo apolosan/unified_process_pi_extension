@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.2.0] - 2026-05-19
+
+### Added
+- Integration checklist injected into agent context via `before_agent_start` (stack up, health, smoke, Tier 1 e2e, `smoke.log` evidence).
+- New tools: `up_record_integration_check` (record smoke/integration evidence) and `up_require_paths` (validate API, tests, matrix, operations, `.env.example`).
+- Integration verification UI widget (`up:integration`) and smoke status (`up:smoke`) driven by `docs/up/14-implementation/smoke.log`.
+- Extension modules: `agent-context.ts`, `integration-evidence.ts`, `integration-tools.ts` with 22 unit tests (`npm test`).
+- UP skills: Tier 1 (integrated) vs Tier 2 (contract) e2e distinction, D1–D6 deferred until Tier 1 passes, interface-design integration hooks, deploy/orchestrator smoke gates.
+- Artifact metadata for `12b-integration-matrix.md` in extension state.
+
+### Changed
+- `up-implementation`, `up-tdd`, `up-deploy`, and orchestrator templates now enforce `PROJECT_ROOT/src/` for code and `docs/up/14-implementation/` for logs only.
+- `npm run check` now runs the extension test suite before publish.
+
 ## [1.1.3] - 2026-04-04
 
 ### Fixed
