@@ -31,6 +31,7 @@ describe('recordIntegrationCheck', () => {
     });
 
     assert.equal(result.status, 'ok');
+    assert.equal(result.checkType, 'smoke');
     assert.equal(result.exitCode, 0);
     assert.match(result.timestamp, /^\d{4}-\d{2}-\d{2}T/);
 
@@ -48,6 +49,20 @@ describe('recordIntegrationCheck', () => {
 
     assert.equal(result.status, 'fail');
     assert.equal((await readIntegrationEvidence(cwd)).status, 'fail');
+  });
+
+  it('records structured check type evidence', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'up-record-'));
+    const result = await recordIntegrationCheck(cwd, {
+      checkType: 'api_health',
+      command: 'curl -fsS http://localhost:3000/health',
+      exitCode: 0,
+    });
+
+    const evidence = await readIntegrationEvidence(cwd);
+    assert.equal(result.checkType, 'api_health');
+    assert.equal(evidence.checkType, 'api_health');
+    assert.equal(evidence.checks?.api_health?.exitCode, 0);
   });
 
   it('appends a new block when append is true', async () => {

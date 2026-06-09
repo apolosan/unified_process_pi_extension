@@ -49,14 +49,23 @@ Canonical public package paths:
 
 | Tool | Description |
 |---|---|
-| `up_save_artifact` | Saves markdown artifacts under `docs/up/` and updates UP state |
-| `up_load_artifact` | Loads artifact content from `docs/up/` |
-| `up_update_state` | Updates phase, completed activities, and recommended next command |
+| `up_save_artifact` | Saves markdown artifacts under `docs/up/`, rejecting traversal/absolute paths, and updates UP state |
+| `up_load_artifact` | Loads artifact content from `docs/up/`, rejecting traversal/absolute paths |
+| `up_update_state` | Applies validated JSON updates for known state fields; `currentPhase` is recalculated from completed activities |
 | `up_list_artifacts` | Lists generated artifacts (optional phase filter) |
-| `up_record_integration_check` | Records smoke/integration evidence in `docs/up/14-implementation/smoke.log` |
+| `up_record_integration_check` | Records structured smoke/integration evidence in `docs/up/14-implementation/smoke.log` |
 | `up_require_paths` | Validates required integration paths (API, tests, matrix, operations, `.env.example`) |
 
-**Integration workflow:** run stack/smoke/e2e commands → `up_record_integration_check` → widget shows last verification status.
+**Integration workflow:** run stack/API/smoke/e2e commands → `up_record_integration_check` with `checkType` (`stack_up`, `api_health`, `smoke`, `tier1_integrated_e2e`) → widget shows last verification status and deploy-readiness completeness.
+
+## Verified Guarantees
+
+| Capability | Workflow expectation | Runtime verification |
+|---|---|---|
+| Artifact confinement | UP artifacts live only in `docs/up/` | Save/load reject traversal, absolute paths, encoded traversal, and mixed separators |
+| State integrity | Agents update only supported UP fields | Malformed JSON, arrays/primitives, oversized payloads, and unknown keys are rejected |
+| Completion recovery | Recovered state should not overstate progress | Explicit artifact rules and minimum file sizes are used; semantic review remains outside the extension |
+| Deploy readiness evidence | Four integrated checks must pass | JSONL evidence requires `stack_up`, `api_health`, `smoke`, and `tier1_integrated_e2e` with `exit_code: 0`; commands are still executed separately |
 
 ---
 
@@ -104,7 +113,7 @@ pi will start the process, preserve the complete prompt as the authoritative Sys
 
 ### Automatic Transition Mode
 
-Use `/up-auto on` to enable automatic progression, or toggle it with any of these shortcuts:
+Automatic progression is enabled by default. Use `/up-auto off` to pause it, `/up-auto on` to re-enable it, or toggle it with any of these shortcuts:
 
 - `CTRL+SHIFT+Y`
 - `CTRL+SHIFT+N`
@@ -241,14 +250,14 @@ It should support multiple simultaneous users.
 
 - ✅ **Technology-agnostic analysis** — all artifacts from Inception through Elaboration are independent of tech
 - ✅ **Tech stack detection** — agent passively collects tech signals throughout the process; adapts to 4 requester knowledge levels
-- ✅ **Object-oriented** — strictly follows OO principles and GRASP patterns
-- ✅ **5W2H-driven** — every activity begins with structured brainstorming to surface hidden knowledge
-- ✅ **TDD-first** — complete test battery written before ANY code or meta-code; tests are immutable post-approval
-- ✅ **All test types** — unit, integration, component, frontend, e2e, performance, load, stress, security, accessibility, regression, smoke, contract, mutation, property-based, snapshot
-- ✅ **Design patterns** — researched via specialized MCP + internet before DCD is drawn
-- ✅ **Design system generator** — researches (shadcn/radix/flyonui MCPs + internet), selects, and generates real visual source code
-- ✅ **Full implementation stage** — transforms all UP artifacts into a complete runnable application
-- ✅ **Deployment stage** — prepares and deploys the system to homologation, pre-production, or production
+- ✅ **Object-oriented workflow** — guides OO and GRASP-oriented artifact creation through the skill chain
+- ✅ **5W2H-driven workflow** — instructs every activity to begin with structured brainstorming
+- ✅ **TDD-first protocol** — requires a test battery before implementation; runtime enforcement depends on generated artifacts and evidence
+- ✅ **Broad test planning** — covers unit, integration, component, frontend, e2e, performance, security, accessibility, regression, smoke, contract, mutation, property-based, and snapshot categories at the workflow level
+- ✅ **Design patterns protocol** — researches patterns via available MCP/internet tools before DCD is drawn
+- ✅ **Design system workflow** — researches/selects/generates visual specifications and source code when the required tools are available
+- ✅ **Implementation stage** — guides transformation of UP artifacts into runnable application code
+- ✅ **Deployment stage** — prepares deployment artifacts and requires structured smoke/e2e evidence before readiness
 - ✅ **Documentation stage** — compiles stakeholder, user, developer, operator, and release documentation from authoritative artifacts and runtime evidence
 - ✅ **Iterative by protocol** — if implementation or documentation exposes a design gap, the agent loops back to the correct upstream activity
 - ✅ **Persistent state** — process resumable across pi sessions via session history, `.pi/unified-process/state.json`, and project artifact recovery

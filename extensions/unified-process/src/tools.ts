@@ -5,11 +5,12 @@
 
 import { Type } from '@sinclair/typebox';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname } from 'node:path';
 import type { ExtensionAPI } from '@mariozechner/pi-coding-agent';
 import type { UPArtifact, UPState } from './state.ts';
 import { recordIntegrationCheck, requirePaths } from './integration-tools.ts';
 import { applyStateUpdates, inferArtifactMetadata } from './state.ts';
+import { parseStateUpdates, resolveArtifactPath } from './tool-validation.ts';
 
 export function registerTools(
   pi: ExtensionAPI,
@@ -51,17 +52,17 @@ export function registerTools(
       ),
     }),
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
-      const absolutePath = join(ctx.cwd, 'docs', 'up', params.path);
+      const { absolutePath, artifactPath } = resolveArtifactPath(ctx.cwd, params.path);
       await mkdir(dirname(absolutePath), { recursive: true });
       await writeFile(absolutePath, params.content, 'utf8');
 
-      const inferred = inferArtifactMetadata(params.path);
+      const inferred = inferArtifactMetadata(artifactPath);
       const artifact: UPArtifact = {
-        path: params.path.replace(/\\/g, '/'),
+        path: artifactPath,
         phase: (params.phase as UPArtifact['phase'] | undefined) ?? inferred?.phase ?? 'inception',
         activity:
           (params.activity as UPArtifact['activity'] | undefined) ?? inferred?.activity ?? 'unknown',
-        title: params.title ?? inferred?.title ?? params.path,
+        title: params.title ?? inferred?.title ?? artifactPath,
         generated: Date.now(),
       };
 
@@ -94,11 +95,11 @@ export function registerTools(
       path: Type.String({ description: 'Relative path inside docs/up/ (e.g., 01-vision.md)' }),
     }),
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
-      const absolutePath = join(ctx.cwd, 'docs', 'up', params.path);
+      const { absolutePath, artifactPath } = resolveArtifactPath(ctx.cwd, params.path);
       const content = await readFile(absolutePath, 'utf8');
       return {
         content: [{ type: 'text', text: content }],
-        details: { path: params.path },
+        details: { path: artifactPath },
       };
     },
   });
@@ -107,19 +108,19 @@ export function registerTools(
     name: 'up_update_state',
     label: 'UP Update State',
     description:
-      'Updates the Unified Process state. Use to mark activities as completed, change the current phase, or persist the explicit next command chosen by the orchestrator for refinement-aware transitions.',
-    promptSnippet: 'Update UP state (phase, completed activities, recommended next command)',
+      'Updates the Unified Process state. Use to mark activities as completed or persist the explicit next command chosen by the orchestrator for refinement-aware transitions.',
+    promptSnippet: 'Update UP state (completed activities, recommended next command)',
     parameters: Type.Object({
       updates: Type.String({
         description:
-          'JSON string with the fields to update. Examples: {"completedActivities":["vision","requirements"],"currentPhase":"elaboration"} or {"recommendedNextCommand":"/skill:up-contracts","recommendedNextReason":"Implementation revealed a contract gap that must be refined before proceeding."}',
+          'JSON string with supported fields. Examples: {"completedActivities":["vision","requirements"]} or {"recommendedNextCommand":"/skill:up-contracts","recommendedNextReason":"Implementation revealed a contract gap that must be refined before proceeding."}',
       }),
     }),
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
       const state = getState() ?? (await ensureState(ctx.cwd));
       if (!state) throw new Error('No active or recoverable UP process. Use /up [vision] to start one.');
 
-      const updates = JSON.parse(params.updates);
+      const updates = parseStateUpdates(params.updates);
       const nextState = applyStateUpdates(state, updates);
       await commitState(ctx.cwd, nextState);
 
@@ -188,6 +189,12 @@ export function registerTools(
       command: Type.String({
         description: 'Exact command that was executed (e.g. npm run test:smoke)',
       }),
+      checkType: Type.Optional(
+        Type.String({
+          description:
+            'Structured check type: stack_up | api_health | smoke | tier1_integrated_e2e. Defaults to smoke for backwards compatibility.',
+        })
+      ),
       exitCode: Type.Number({
         description: 'Process exit code (0 = success)',
       }),
@@ -202,6 +209,7 @@ export function registerTools(
     }),
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
       const result = await recordIntegrationCheck(ctx.cwd, {
+        checkType: params.checkType as any,
         command: params.command,
         exitCode: params.exitCode,
         notes: params.notes,
@@ -213,6 +221,7 @@ export function registerTools(
       const summary = [
         `Integration evidence recorded: ${result.path}`,
         `status: ${result.status}`,
+        `check_type: ${result.checkType}`,
         `exit_code: ${result.exitCode}`,
         `timestamp: ${result.timestamp}`,
         `command: ${result.command}`,

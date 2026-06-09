@@ -4,7 +4,13 @@
 
 import { access, appendFile, mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { SMOKE_LOG_RELATIVE_PATH, type IntegrationEvidenceStatus } from './integration-evidence.ts';
+import {
+  INTEGRATION_CHECK_TYPES,
+  SMOKE_LOG_RELATIVE_PATH,
+  normalizeIntegrationCheckType,
+  type IntegrationCheckType,
+  type IntegrationEvidenceStatus,
+} from './integration-evidence.ts';
 
 export interface PathCheckGroup {
   id: string;
@@ -31,6 +37,7 @@ export interface RequirePathsResult {
 }
 
 export interface RecordIntegrationCheckInput {
+  checkType?: IntegrationCheckType;
   command: string;
   exitCode: number;
   notes?: string;
@@ -40,6 +47,7 @@ export interface RecordIntegrationCheckInput {
 export interface RecordIntegrationCheckResult {
   path: string;
   status: IntegrationEvidenceStatus;
+  checkType: IntegrationCheckType;
   exitCode: number;
   timestamp: string;
   command: string;
@@ -83,16 +91,14 @@ async function exists(cwd: string, relativePath: string): Promise<boolean> {
   }
 }
 
-function formatSmokeBlock(input: RecordIntegrationCheckInput, timestamp: string): string {
-  const lines = [
-    `timestamp: ${timestamp}`,
-    `command: ${input.command}`,
-    `exit_code: ${input.exitCode}`,
-  ];
-  if (input.notes?.trim()) {
-    lines.push(`notes: ${input.notes.trim()}`);
-  }
-  return `${lines.join('\n')}\n`;
+function formatSmokeRecord(input: RecordIntegrationCheckInput, timestamp: string): string {
+  return `${JSON.stringify({
+    check_type: normalizeIntegrationCheckType(input.checkType),
+    command: input.command,
+    exit_code: input.exitCode,
+    timestamp,
+    notes: input.notes?.trim() || undefined,
+  })}\n`;
 }
 
 export async function recordIntegrationCheck(
@@ -100,7 +106,7 @@ export async function recordIntegrationCheck(
   input: RecordIntegrationCheckInput
 ): Promise<RecordIntegrationCheckResult> {
   const timestamp = new Date().toISOString();
-  const block = formatSmokeBlock(input, timestamp);
+  const block = formatSmokeRecord(input, timestamp);
   const absolutePath = join(cwd, SMOKE_LOG_RELATIVE_PATH);
   const append = input.append ?? true;
 
@@ -122,6 +128,7 @@ export async function recordIntegrationCheck(
   return {
     path: SMOKE_LOG_RELATIVE_PATH,
     status,
+    checkType: normalizeIntegrationCheckType(input.checkType),
     exitCode: input.exitCode,
     timestamp,
     command: input.command,
@@ -186,6 +193,7 @@ export function buildStrictErrorMessage(result: RequirePathsResult): string {
     '- Add tests under PROJECT_ROOT/tests/e2e/ or tests/integration/',
     '- Document env vars in .env.example',
     '- Generate docs/up/12b-integration-matrix.md and docs/up/04-system-operations.md via UP skills',
+    `- Record deploy evidence for: ${INTEGRATION_CHECK_TYPES.join(', ')}`,
   ];
   return lines.join('\n');
 }

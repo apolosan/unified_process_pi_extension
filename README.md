@@ -51,14 +51,14 @@ Registered commands:
 
 The extension footer/status now also shows the effective next UP command in real time (`up:next`). When the orchestrator persists an explicit recommendation, the extension also renders a compact widget above the editor with the recommended command and rationale, varying the label by recommendation type (forward progression, refinement, jump, coordination, risk-aware).
 
-**Integration verification (v1.2.0):** before declaring implementation or deploy ready, the agent receives a mandatory integration checklist. Run smoke/Tier 1 e2e commands, then record evidence with `up_record_integration_check`. The footer/widget shows `last integrated verification: OK/FAIL/MISSING` from `docs/up/14-implementation/smoke.log`.
+**Integration verification (v1.2.0):** before declaring implementation or deploy ready, the agent receives a mandatory integration checklist. Run stack/API/smoke/Tier 1 e2e commands, then record evidence with `up_record_integration_check`. The tool writes structured JSONL records to `docs/up/14-implementation/smoke.log` and deploy readiness requires all four check types (`stack_up`, `api_health`, `smoke`, `tier1_integrated_e2e`) with `exit_code: 0`.
 
 Registered tools:
 - `up_save_artifact`
 - `up_load_artifact`
 - `up_update_state`
 - `up_list_artifacts`
-- `up_record_integration_check` — record command, exit code, and timestamp to `smoke.log`
+- `up_record_integration_check` — record check type, command, exit code, and timestamp to `smoke.log`
 - `up_require_paths` — validate required integration paths (API, tests, matrix, operations, env template)
 
 ### Skills
@@ -180,9 +180,19 @@ up-deps check
 
 ```bash
 npm run deps:scan
-npm run check   # dependency scan + extension syntax + 22 unit tests
+npm run check   # dependency scan + extension syntax + unit tests
 npm test        # extension unit tests only
 ```
+
+## Runtime guarantees
+
+| Capability | The workflow requires | The extension verifies automatically |
+|------------|-----------------------|--------------------------------------|
+| Artifact I/O boundary | Artifacts stay under `docs/up/` | Yes: save/load reject traversal, absolute paths, encoded traversal, and mixed separator escapes |
+| State updates | Only known UP state fields are persisted | Yes: malformed JSON, arrays/primitives, oversized payloads, and unknown fields are rejected |
+| Activity completion | Activities advance only from sufficient artifacts | Partially: recovered state uses explicit completion rules and minimum artifact size; semantic completeness remains a skill/reviewer responsibility |
+| Integration evidence | Stack/API/smoke/Tier 1 e2e evidence before deploy readiness | Partially: structured JSONL is parsed and all four check types are required, but commands are still executed outside the recording tool |
+| Typecheck | Static TypeScript validation | Not yet: `typescript` is not installed in this package, so `npx tsc --noEmit` is a dependency/setup task |
 
 ### Install known auto-installable dependencies
 

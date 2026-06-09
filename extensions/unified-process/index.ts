@@ -54,7 +54,7 @@ function restoreAutoTransitionMode(entries: any[]): boolean {
     (entry) => entry.type === 'custom' && entry.customType === AUTO_MODE_ENTRY_TYPE
   );
 
-  if (!autoEntries.length) return false;
+  if (!autoEntries.length) return true;
   return Boolean(autoEntries[autoEntries.length - 1]?.data?.enabled);
 }
 
@@ -80,9 +80,21 @@ function formatShortcutList(): string {
   return AUTO_TOGGLE_SHORTCUTS.map((shortcut) => shortcut.toUpperCase()).join(' | ');
 }
 
+function getIntegrationTone(status: IntegrationEvidence['status']): 'success' | 'warning' | 'muted' {
+  if (status === 'ok') return 'success';
+  if (status === 'fail') return 'warning';
+  return 'muted';
+}
+
+function getIntegrationStatusLabel(status: IntegrationEvidence['status']): string {
+  if (status === 'ok') return '✅ smoke';
+  if (status === 'fail') return '⚠️ smoke';
+  return '⏳ smoke';
+}
+
 export default function unifiedProcessExtension(pi: ExtensionAPI): void {
   let currentState: UPState | null = null;
-  let autoTransitionEnabled = false;
+  let autoTransitionEnabled = true;
   let activeAutoTransition: ActiveAutoTransition | null = null;
   let integrationEvidence: IntegrationEvidence | null = null;
 
@@ -181,13 +193,7 @@ export default function unifiedProcessExtension(pi: ExtensionAPI): void {
     if (!integrationEvidence) return undefined;
     const theme = ctx.ui.theme;
     const label = formatIntegrationVerificationStatus(integrationEvidence);
-    const tone =
-      integrationEvidence.status === 'ok'
-        ? 'success'
-        : integrationEvidence.status === 'fail'
-          ? 'warning'
-          : 'muted';
-    return [theme.fg(tone, `🔌 ${label}`)];
+    return [theme.fg(getIntegrationTone(integrationEvidence.status), `🔌 ${label}`)];
   };
   const refreshUPUI = (ctx: ExtensionContext, state: UPState | null = currentState): void => {
     ctx.ui.setStatus('up:auto', autoTransitionEnabled ? '🤖 UP AUTO' : '🤖 UP MANUAL');
@@ -198,13 +204,7 @@ export default function unifiedProcessExtension(pi: ExtensionAPI): void {
     if (!state) return;
     ctx.ui.setStatus('up', getStatusSummary(state));
     if (integrationEvidence) {
-      const short =
-        integrationEvidence.status === 'ok'
-          ? '✅ smoke'
-          : integrationEvidence.status === 'fail'
-            ? '⚠️ smoke'
-            : '⏳ smoke';
-      ctx.ui.setStatus('up:smoke', short);
+      ctx.ui.setStatus('up:smoke', getIntegrationStatusLabel(integrationEvidence.status));
     }
   };
   const updateAutoTransitionUI = (ctx: ExtensionContext): void => {

@@ -57,6 +57,10 @@ interface ArtifactDefinition {
   completedActivity?: UPActivity;
 }
 
+type CompletionRule =
+  | { mode: 'all'; paths: string[]; minBytes?: number }
+  | { mode: 'any'; paths: string[]; minBytes?: number };
+
 /** Canonical order of UP activities */
 export const ACTIVITY_ORDER: UPActivity[] = [
   'vision',
@@ -78,6 +82,29 @@ export const ACTIVITY_ORDER: UPActivity[] = [
 ];
 
 export const PROJECT_STATE_RELATIVE_PATH = '.pi/unified-process/state.json';
+
+export const ACTIVITY_COMPLETION_RULES: Partial<Record<UPActivity, CompletionRule>> = {
+  vision: { mode: 'all', paths: ['01-vision.md'], minBytes: 20 },
+  requirements: {
+    mode: 'all',
+    paths: ['02-requirements.md', '02-use-case-list.md'],
+    minBytes: 20,
+  },
+  'use-cases': { mode: 'any', paths: ['03-use-cases/'], minBytes: 20 },
+  'sequence-diagrams': { mode: 'any', paths: ['04-dss/', '04-system-operations.md'], minBytes: 20 },
+  'conceptual-model': { mode: 'all', paths: ['05-conceptual-model.md'], minBytes: 20 },
+  contracts: { mode: 'any', paths: ['06-contracts/', '06-contracts-summary.md'], minBytes: 20 },
+  'tech-stack': { mode: 'any', paths: ['11-tech-stack.md', '11-tech-research.md'], minBytes: 20 },
+  tdd: { mode: 'any', paths: ['10-tdd-plan.md', '10-tests/'], minBytes: 20 },
+  'design-patterns': { mode: 'all', paths: ['12-design-patterns.md'], minBytes: 20 },
+  'object-design': { mode: 'any', paths: ['07-dcp.md', '07-design-sequences/'], minBytes: 20 },
+  'interface-design': { mode: 'all', paths: ['08-interface-design.md'], minBytes: 20 },
+  'design-system': { mode: 'any', paths: ['13-design-system.md', '13-ui-code/'], minBytes: 20 },
+  'data-mapping': { mode: 'all', paths: ['09-data-model.md'], minBytes: 20 },
+  implementation: { mode: 'any', paths: ['14-implementation/'], minBytes: 20 },
+  deploy: { mode: 'any', paths: ['15-deploy/'], minBytes: 20 },
+  documentation: { mode: 'any', paths: ['16-documentation/'], minBytes: 20 },
+};
 
 export function normalizeRecommendedNextCommand(command: unknown): string | null {
   if (typeof command !== 'string') return null;
@@ -351,7 +378,7 @@ export async function inferStateFromProject(cwd: string): Promise<UPState | null
   }
 
   const artifacts: UPArtifact[] = [];
-  const completed = new Set<UPActivity>();
+  const artifactSizes = new Map<string, number>();
 
   for (const fullPath of discoveredFiles) {
     const relativePath = relative(docsRoot, fullPath).replace(/\\/g, '/');
@@ -361,6 +388,7 @@ export async function inferStateFromProject(cwd: string): Promise<UPState | null
     if (!metadata) continue;
 
     const info = await stat(fullPath);
+    artifactSizes.set(relativePath, info.size);
     artifacts.push({
       path: relativePath,
       phase: metadata.phase,
@@ -369,9 +397,6 @@ export async function inferStateFromProject(cwd: string): Promise<UPState | null
       generated: info.mtimeMs,
     });
 
-    if (metadata.completedActivity) {
-      completed.add(metadata.completedActivity);
-    }
   }
 
   if (!artifacts.length) return null;
@@ -389,12 +414,38 @@ export async function inferStateFromProject(cwd: string): Promise<UPState | null
     systemName,
     vision: visionSummary || visionText || '',
     currentIteration,
-    completedActivities: [...completed],
+    completedActivities: ACTIVITY_ORDER.filter((activity) =>
+      validateActivityCompletion(activity, artifactSizes)
+    ),
     artifacts: artifacts.sort((a, b) => a.generated - b.generated),
     recommendedNextCommand,
     recommendedNextReason,
     lastUpdated,
   });
+}
+
+export function validateActivityCompletion(
+  activity: UPActivity,
+  artifactPaths: Iterable<string> | Map<string, number>
+): boolean {
+  const rule = ACTIVITY_COMPLETION_RULES[activity];
+  if (!rule) return false;
+
+  const artifacts =
+    artifactPaths instanceof Map
+      ? [...artifactPaths.entries()].map(([path, size]) => ({ path, size }))
+      : [...artifactPaths].map((path) => ({ path, size: undefined }));
+
+  const matchesPattern = (pattern: string): boolean =>
+    artifacts.some(({ path, size }) => {
+      const matches = pattern.endsWith('/') ? path.startsWith(pattern) : path === pattern;
+      if (!matches) return false;
+      return size === undefined || size >= (rule.minBytes ?? 0);
+    });
+
+  return rule.mode === 'all'
+    ? rule.paths.every(matchesPattern)
+    : rule.paths.some(matchesPattern);
 }
 
 export async function restoreStateForProject(
@@ -564,10 +615,7 @@ function normalizeArtifacts(artifacts: unknown): UPArtifact[] {
         candidate.phase === 'transition'
           ? candidate.phase
           : inferred?.phase ?? 'inception',
-      activity:
-        typeof candidate.activity === 'string'
-          ? (candidate.activity as UPArtifactActivity)
-          : inferred?.activity ?? 'unknown',
+      activity: normalizeArtifactActivity(candidate.activity, inferred?.activity),
       title:
         typeof candidate.title === 'string' && candidate.title.trim()
           ? candidate.title
@@ -578,6 +626,18 @@ function normalizeArtifacts(artifacts: unknown): UPArtifact[] {
   }
 
   return normalizedArtifacts.sort((left, right) => left.generated - right.generated);
+}
+
+function normalizeArtifactActivity(
+  activity: unknown,
+  fallback: UPArtifactActivity | undefined
+): UPArtifactActivity {
+  if (activity === 'orchestrator' || activity === 'unknown') return activity;
+  if (typeof activity === 'string' && ACTIVITY_ORDER.includes(activity as UPActivity)) {
+    return activity as UPActivity;
+  }
+
+  return fallback ?? 'unknown';
 }
 
 function mergeArtifacts(...artifactCollections: UPArtifact[][]): UPArtifact[] {
