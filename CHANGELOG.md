@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.2.1] - 2026-06-09
+
+### Fixed
+- Hardened artifact save/load path validation to keep generated UP artifacts confined to `docs/up/`.
+- Validated `up_update_state` payloads before applying state changes, rejecting malformed, oversized, or unsupported updates.
+- Made recovered activity completion use explicit artifact rules so partial artifacts do not overstate process progress.
+
+### Changed
+- Recorded integration evidence as structured JSONL with deploy readiness checks for `stack_up`, `api_health`, `smoke`, and `tier1_integrated_e2e`.
+- Updated README runtime guarantees to reflect verified extension behavior and current typecheck limitations.
+- Expanded extension tests from 22 to 42 cases covering validation, recovery, and integration evidence behavior.
+
 ## [1.2.0] - 2026-05-19
 
 ### Added
