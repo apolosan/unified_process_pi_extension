@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.2.4] - 2026-07-30
+
+### Fixed
+- **Runtime crash on every `/skill:up-*` input**: `extensions/unified-process/index.ts` called `extractUPSkillName`, `isAutoChainSkill` and `buildUPSkillCommand` in the `input` event handler but never imported them after the v1.2.3 refactor that lifted those helpers into `src/auto-transition.ts`. The extension threw `extractUPSkillName is not defined` on each auto-transition cycle. The three symbols are now imported, and the handler was verified end-to-end (module load + input dispatch + 8 tool registrations).
+
 ## [1.2.3] - 2026-07-30
 
 ### Fixed

@@ -41,10 +41,13 @@ import {
 import {
   AUTO_MODE_ENTRY_TYPE,
   AUTO_TOGGLE_SHORTCUTS,
+  buildUPSkillCommand,
   classifyRecommendation,
   compactReason,
+  extractUPSkillName,
   formatRecommendedNextStatus,
   formatShortcutList,
+  isAutoChainSkill,
   restoreAutoTransitionMode,
   type RecommendationClassification,
 } from './src/auto-transition.ts';
