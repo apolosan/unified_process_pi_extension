@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.2.3] - 2026-07-30
+
+### Fixed
+- Closed null-byte injection in `resolveArtifactPath` (dual-layer guard: raw input + post-decode). CVE-class path-truncation bypass: paths containing `\0` are now rejected before any filesystem operation.
+- Normalized lone `\r` line endings in `normalizeVisionText` (Mac Classic). Extended regex to `\r\n?`.
+- Stripped markdown syntax (`#`, `*`, `|`, `` ` ``, `<`, `>`) from vision content before deriving the canonical `systemName` so pasted visions no longer leak noise characters.
+
+### Changed
+- Refactored `extensions/unified-process/index.ts` to lift 11 pure helpers (`extractUPSkillName`, `buildUPSkillCommand`, `extractActivityFromUPCommand`, `isAutoChainSkill`, `formatRecommendedNextStatus`, `classifyRecommendation`, `compactReason`, `restoreAutoTransitionMode`, `formatShortcutList`, `AUTO_MODE_ENTRY_TYPE`, `AUTO_TOGGLE_SHORTCUTS`) into a new `src/auto-transition.ts` module so they can be unit-tested in isolation. Zero consumer-facing change.
+
+### Tests
+- Grew the test suite from 98 to 192 cases (+94 net new, 0 removed, 0 skipped). Two new test files (`auto-transition.test.ts` with 32 RF/RNF cases, `system-name.test.ts` with 20) cover previously-zero-tested pure helpers. Six existing test files (`state-validation`, `path-safety`, `agent-context`, `completion-inference`, `integration-tools`, `integration-evidence`) gained 42 new edge and RNF cases (boundary, null safety, idempotency, determinism, performance budgets). Every new `it()` carries an `@rf` or `@rnf` JSDoc marker.
+- `docs/TESTS_LIST.md` rewritten as the test-strength audit catalog for all 192 cases.
+
 ## [1.2.2] - 2026-06-09
 
 ### Fixed
