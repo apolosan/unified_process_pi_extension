@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.2.5] - 2026-07-30
+
+### Tests
+- Added `entrypoint-smoke.test.ts` (12 cases, RF-ES-01..05 / RNF-ES-01..02): the suite now loads the real extension entrypoint (`index.ts`) with a mocked `ExtensionAPI` and dispatches real `input`/`agent_end` events through it. This closes the blind spot that let v1.2.3 ship with `extractUPSkillName is not defined` — unit tests on `src/*.ts` never imported the entrypoint, so missing imports at the top of `index.ts` were invisible. Pins handler registration (5 lifecycle events), tool/command/shortcut registration, symbol resolution for every documented `/skill:up-*` invocation, auto-transition arming/disarming, and a 1000-dispatch performance budget. Suite total: 192 → 204.
+- `docs/TESTS_LIST.md` inventory updated to 204/204.
+
 ## [1.2.4] - 2026-07-30
 
 ### Fixed
