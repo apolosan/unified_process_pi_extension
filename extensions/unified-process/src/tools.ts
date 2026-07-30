@@ -11,6 +11,8 @@ import type { UPArtifact, UPState } from './state.ts';
 import { recordIntegrationCheck, requirePaths } from './integration-tools.ts';
 import { applyStateUpdates, inferArtifactMetadata } from './state.ts';
 import { parseStateUpdates, resolveArtifactPath } from './tool-validation.ts';
+import { runTestQualityAudit } from './test-quality/audit-tool.ts';
+import { writeHandoffDocument } from './test-quality/handoff-tool.ts';
 
 export function registerTools(
   pi: ExtensionAPI,
@@ -287,6 +289,133 @@ export function registerTools(
 
       return {
         content: [{ type: 'text', text: lines.join('\n') }],
+        details: result,
+      };
+    },
+  });
+
+  pi.registerTool({
+    name: 'up_test_quality_audit',
+    label: 'UP Test Quality Audit',
+    description:
+      'Audits test files against P1 (mediocre patterns) and P2 (RF/RNF traceability). Returns totals, issue list, and coverage gaps. Use mode=strict before saving TDD artifacts or during TDD phase to enforce 100% RF/RNF coverage with no mediocre tests.',
+    promptSnippet: 'Run static analysis on test files for P1/P2 violations',
+    parameters: Type.Object({
+      mode: Type.Optional(
+        Type.String({
+          description: 'report (default) | strict — strict returns passed=false when any P1 or coverage gap exists',
+        })
+      ),
+      requirementsFile: Type.Optional(
+        Type.String({
+          description: 'Override path for the requirements document. Defaults to docs/up/02-requirements.md.',
+        })
+      ),
+      scope: Type.Optional(
+        Type.String({
+          description: 'project (default — scans cwd) | extensions (scans cwd/extensions only)',
+        })
+      ),
+    }),
+    async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+      const mode = (params.mode === 'strict' ? 'strict' : 'report') as 'report' | 'strict';
+      const report = await runTestQualityAudit({
+        cwd: ctx.cwd,
+        mode,
+        requirementsFile: params.requirementsFile,
+      });
+      const lines = [
+        `Audit (${report.mode}) — passed: ${report.passed ? 'yes' : 'no'}`,
+        `Files scanned: ${report.totals.files}`,
+        `Tests: ${report.totals.tests}`,
+        `Mediocre issues: ${report.totals.mediocre}`,
+        `Uncovered RF: ${report.totals.uncoveredRf}`,
+        `Uncovered RNF: ${report.totals.uncoveredRnf}`,
+        '',
+        ...(report.totals.mediocre
+          ? [
+              'Issues:',
+              ...report.issues.slice(0, 50).map(
+                (i) => `  [${i.type}] ${i.file}:${i.line}  ${i.testName} — ${i.message}`,
+              ),
+            ]
+          : []),
+        '',
+        ...(report.coverage.uncoveredRf.length
+          ? [
+              'Uncovered RF:',
+              ...report.coverage.uncoveredRf.map((r) => `  ${r.id}: ${r.title}`),
+            ]
+          : []),
+        '',
+        ...(report.coverage.uncoveredRnf.length
+          ? [
+              'Uncovered RNF:',
+              ...report.coverage.uncoveredRnf.map((r) => `  ${r.id}: ${r.title}`),
+            ]
+          : []),
+      ];
+      return {
+        content: [{ type: 'text', text: lines.join('\n') }],
+        details: report,
+      };
+    },
+  });
+
+  pi.registerTool({
+    name: 'up_generate_handoff',
+    label: 'UP Generate Handoff',
+    description:
+      'Generates a handoff document under docs/up/15-handoff/ that encodes the current UP state, audit summary, last 5 smoke.log entries, and numbered resume instructions. Use when a UP iteration cannot deliver the full deliverable set so the next iteration can resume without context loss.',
+    promptSnippet: 'Write handoff doc capturing incomplete UP iteration state',
+    parameters: Type.Object({
+      iteration: Type.Optional(
+        Type.Number({
+          description: 'Override the iteration number. Default: state.currentIteration.',
+        })
+      ),
+      outputDir: Type.Optional(
+        Type.String({ description: 'Override output directory. Default: docs/up/15-handoff' })
+      ),
+      timestamp: Type.Optional(
+        Type.String({
+          description: 'ISO timestamp for deterministic filenames. Default: new Date().toISOString()',
+        })
+      ),
+    }),
+    async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+      const state = getState() ?? (await ensureState(ctx.cwd));
+      if (!state) {
+        return {
+          content: [
+            { type: 'text', text: 'No active or recoverable UP process. Use /up [vision] to start one.' },
+          ],
+          details: { skipped: true },
+        };
+      }
+
+      const auditReport = await runTestQualityAudit({ cwd: ctx.cwd, mode: 'report' });
+
+      const result = await writeHandoffDocument({
+        cwd: ctx.cwd,
+        state:
+          params.iteration !== undefined
+            ? { ...state, currentIteration: params.iteration }
+            : state,
+        auditReport,
+        outputDir: params.outputDir,
+        timestamp: params.timestamp,
+      });
+
+      const summary = [
+        `Handoff document written: ${result.path}`,
+        `Bytes: ${result.bytes}`,
+        `Iteration: ${state.currentIteration}`,
+        ...(result.warnings.length ? ['Warnings:', ...result.warnings.map((w) => `  - ${w}`)] : []),
+      ].join('\n');
+
+      return {
+        content: [{ type: 'text', text: summary }],
         details: result,
       };
     },

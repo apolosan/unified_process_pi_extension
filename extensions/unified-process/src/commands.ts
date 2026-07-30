@@ -13,6 +13,8 @@ import {
   type UPState,
 } from './state.ts';
 import { deriveSystemNameFromVision, normalizeVisionText } from './system-name.ts';
+import { runTestQualityAudit } from './test-quality/audit-tool.ts';
+import { writeHandoffDocument } from './test-quality/handoff-tool.ts';
 
 function buildStartFollowUp(state: UPState): string {
   return [
@@ -284,6 +286,59 @@ Artifacts found: ${state.artifacts.length}`,
       pi.sendUserMessage(`Read and display the full contents of the file: docs/up/${selectedPath}`, {
         deliverAs: 'followUp',
       });
+    },
+  });
+
+  pi.registerCommand('up-audit', {
+    description:
+      'Run UP test quality audit. Usage: /up-audit [strict|report]. Defaults to strict during TDD/Implementation phases.',
+    handler: async (args, ctx) => {
+      const normalized = args.trim().toLowerCase();
+      const mode: 'report' | 'strict' =
+        normalized === 'report' ? 'report' : 'strict';
+      const audit = await runTestQualityAudit({ cwd: ctx.cwd, mode });
+      const lines = [
+        `📊 UP audit (${mode}) — passed: ${audit.passed ? 'yes' : 'no'}`,
+        `Files: ${audit.totals.files}  Tests: ${audit.totals.tests}`,
+        `Mediocre: ${audit.totals.mediocre}  Uncovered RF: ${audit.totals.uncoveredRf}  Uncovered RNF: ${audit.totals.uncoveredRnf}`,
+      ];
+      if (audit.issues.length) {
+        lines.push('Issues:');
+        for (const i of audit.issues.slice(0, 30)) {
+          lines.push(`  [${i.type}] ${i.file.split('/').slice(-2).join('/')}:${i.line}  ${i.testName} — ${i.message}`);
+        }
+      }
+      if (!audit.passed && mode === 'strict') {
+        ctx.ui.notify(lines.join('\n'), 'warning');
+        return;
+      }
+      ctx.ui.notify(lines.join('\n'), audit.passed ? 'success' : 'info');
+    },
+  });
+
+  pi.registerCommand('up-handoff', {
+    description:
+      'Generate a handoff document under docs/up/15-handoff/ when the current UP iteration cannot deliver its full deliverable set.',
+    handler: async (_args, ctx) => {
+      const state =
+        getState() ??
+        (await ensureState(ctx.cwd, (ctx.sessionManager?.getEntries?.() as any[]) ?? []));
+      if (!state) {
+        ctx.ui.notify(getNoStateMessage(), 'warning');
+        return;
+      }
+      const auditReport = await runTestQualityAudit({ cwd: ctx.cwd, mode: 'report' });
+      const result = await writeHandoffDocument({
+        cwd: ctx.cwd,
+        state,
+        auditReport,
+      });
+      const lines = [
+        `📦 Handoff written: ${result.path}`,
+        `Bytes: ${result.bytes}`,
+        ...(result.warnings.length ? ['Warnings:', ...result.warnings.map((w) => `  - ${w}`)] : []),
+      ];
+      ctx.ui.notify(lines.join('\n'), result.warnings.length ? 'warning' : 'info');
     },
   });
 }

@@ -41,7 +41,7 @@
   },
   "scripts": {
     "check": "node ./scripts/scan-skill-dependencies.mjs --verify && node ./scripts/verify-extension-syntax.mjs && npm run test",
-    "test": "node --experimental-strip-types --test extensions/unified-process/src/**/*.test.ts",
+    "test": "node --experimental-strip-types --test 'extensions/unified-process/src/**/*.test.ts'",
     "check:extensions": "node ./scripts/verify-extension-syntax.mjs",
     "deps:scan": "node ./scripts/scan-skill-dependencies.mjs",
     "deps:check": "node ./scripts/setup-dependencies.mjs check",

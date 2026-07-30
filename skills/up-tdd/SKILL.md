@@ -208,6 +208,71 @@ docs/up/10-tests/                  # Individual test battery files
   └── stakeholder-tests.md         # Stakeholder-suggested tests
 ```
 
+## Step 8: Mandatory Quality Gate (RF-21..24)
+
+After authoring the test battery and before saving `10-tdd-plan.md` or any `10-tests/*` artifact, invoke the extension's quality gate:
+
+```
+up_test_quality_audit(mode="strict")
+```
+
+The audit returns one of two verdicts:
+
+| Verdict | Required action |
+|---------|-----------------|
+| `passed: true` | Free to save TDD artifacts. |
+| `passed: false` | **BLOCKED.** Resolve every entry in the report before saving anything. |
+
+Four parallel rules. Violation of any single rule blocks the phase:
+
+| # | Rule | What the audit checks |
+|---|------|-----------------------|
+| RF-21 | **No mediocre tests (P1)** | Rejects `expect(x).toBeDefined()`, `it('should work')`, vendor-targeting tests, blind snapshots, literal self-references, smoke-empty imports. Detector: `extensions/unified-process/src/test-quality/mediocre-detector.ts`. |
+| RF-22 | **100% RF/RNF coverage** | Every `RF-NN` and `RNF-NN` declared in `docs/up/02-requirements.md` must be referenced by at least one `@rf` / `@rnf` JSDoc marker on a real `it()` block. |
+| RF-23 | **Annotated JSDoc on every test** | Each `it()` must carry `@rf` and/or `@rnf` markers immediately above the test head. Unmarked tests fail the gate. |
+| RF-24 | **Tier 1 integrated e2e before D1–D6** | No deployment is declared ready unless `up_record_integration_check` shows a Tier-1 entry with `exit_code: 0`. |
+
+### Test Annotation Contract
+
+Every `it()` MUST carry `@rf` and/or `@rnf` markers in a JSDoc or single-line comment immediately above the test head. The audit parses these from the comment block adjacent to each `it()`:
+
+```ts
+/**
+ * @rf RF-01
+ * @rnf RNF-04
+ */
+it('rejects duplicate email registrations', () => {
+  const result = registerUser({ email: 'dup@example.com' });
+  assert.equal(result.status, 409);
+});
+```
+
+Multi-marker lines also work:
+
+```ts
+// @rf RF-08 @rnf RNF-02
+it('p95 latency budget under 500 concurrent users', () => { … });
+```
+
+### Handoff on Incomplete Transition (RNF-07)
+
+When an iteration cannot deliver everything before context switch (timeout, breaking change exposed mid-impl, incomplete coverage), generate a handoff:
+
+```
+up_generate_handoff
+```
+
+The orchestrator writes `docs/up/15-handoff/HANDOFF-iter-{N}-{ISO}.md` with:
+
+- **System Identity** — name, phase, last-updated timestamp.
+- **Completion Status table** — every activity in `ACTIVITY_ORDER` marked ✅ done / ⚠ partial / ❌ not started.
+- **Uncovered Requirements** — RF/RNF without a test reference.
+- **Last Integration Evidence** — last 5 entries from `smoke.log` (command, exit code, ISO timestamp).
+- **Resume Instructions** — numbered list referencing canonical recovery commands (`/up`, `up_test_quality_audit`, `up_record_integration_check`, `recommendedNext`).
+- **Recovery Pointers** — git branch, pi session id, last successful artifact path.
+
+A manual command `/up-handoff` is also exposed for pre-emptive handoffs before a planned break.
+
 ---
 
 ## TDD and the UP Activity Flow

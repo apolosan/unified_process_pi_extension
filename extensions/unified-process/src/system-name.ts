@@ -66,7 +66,7 @@ const BOUNDARY_PATTERNS = [
 
 export function normalizeVisionText(raw: string): string {
   return String(raw ?? '')
-    .replace(/\r\n/g, '\n')
+    .replace(/\r\n?/g, '\n')
     .trim()
     .replace(/^\/up\b[:\s-]*/i, '')
     .replace(/^["'“”‘’`]+|["'“”‘’`]+$/g, '')
@@ -77,7 +77,7 @@ export function deriveSystemNameFromVision(vision: string): string {
   const normalizedVision = normalizeVisionText(vision);
   if (!normalizedVision) return 'Unnamed System';
 
-  let candidate = extractCandidateClause(normalizedVision);
+  let candidate = stripMarkdownNoise(extractCandidateClause(normalizedVision));
   const explicitTypeMatch = candidate.match(SYSTEM_TYPE_PATTERN);
 
   if (explicitTypeMatch?.groups?.type && explicitTypeMatch.groups.subject) {
@@ -128,6 +128,21 @@ function stripLeadingArticle(text: string): string {
 
 function stripTrailingNoise(text: string): string {
   return text.replace(/[\s,;:.\-–—]+$/g, '').trim();
+}
+
+/**
+ * Strips lightweight markdown noise so vision content copied from existing
+ * documents (markdown headers, emphasis, tables) does not leak into the
+ * derived systemName. Only characters that cannot be part of a system name
+ * are removed; alphanumeric content is preserved verbatim.
+ */
+function stripMarkdownNoise(text: string): string {
+  return text
+    .replace(/^[#>\s]+/, '')
+    .replace(/[*_`~|]+/g, ' ')
+    .replace(/[<>]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function flattenWhitespace(text: string): string {

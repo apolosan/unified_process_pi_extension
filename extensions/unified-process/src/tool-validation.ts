@@ -19,11 +19,24 @@ export function resolveArtifactPath(
     throw new Error('Artifact path must be a non-empty relative path inside docs/up/.');
   }
 
+  // Reject null-byte injection (C/PHP-style path truncation bypass). A
+  // literal NUL in the path is never a legitimate filename character on
+  // supported platforms; some downstream consumers (JSON parsers, fs APIs)
+  // may truncate or mis-handle it.
+  if (requestedPath.includes('\0')) {
+    throw new Error('Artifact path must not contain null bytes.');
+  }
+
   let decodedPath: string;
   try {
     decodedPath = decodeURIComponent(requestedPath);
   } catch {
     throw new Error('Artifact path must be a valid relative path inside docs/up/.');
+  }
+
+  // Re-decode check on the decoded form (catches double-encoded null bytes).
+  if (decodedPath.includes('\0')) {
+    throw new Error('Artifact path must not contain null bytes.');
   }
 
   const normalizedRequest = decodedPath.replace(/\\/g, '/');

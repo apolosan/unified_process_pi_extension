@@ -29,7 +29,6 @@ import {
   type IntegrationEvidence,
 } from './src/integration-evidence.ts';
 import {
-  ACTIVITY_ORDER,
   clearRecommendedNextAction,
   getEffectiveNextCommand,
   getRecommendedNextCommand,
@@ -39,46 +38,22 @@ import {
   getNextActivity,
   type UPState,
 } from './src/state.ts';
-
-const AUTO_MODE_ENTRY_TYPE = 'up-auto-mode';
-const AUTO_TOGGLE_SHORTCUTS = ['ctrl+shift+y', 'ctrl+shift+n', 'ctrl+shift+t'] as const;
+import {
+  AUTO_MODE_ENTRY_TYPE,
+  AUTO_TOGGLE_SHORTCUTS,
+  classifyRecommendation,
+  compactReason,
+  formatRecommendedNextStatus,
+  formatShortcutList,
+  restoreAutoTransitionMode,
+  type RecommendationClassification,
+} from './src/auto-transition.ts';
 
 type ActiveAutoTransition = {
   command: string;
   skillName: string;
   progressDetected: boolean;
 };
-
-function restoreAutoTransitionMode(entries: any[]): boolean {
-  const autoEntries = entries.filter(
-    (entry) => entry.type === 'custom' && entry.customType === AUTO_MODE_ENTRY_TYPE
-  );
-
-  if (!autoEntries.length) return true;
-  return Boolean(autoEntries[autoEntries.length - 1]?.data?.enabled);
-}
-
-function extractUPSkillName(text: string): string | null {
-  const match = text.trim().match(/^\/skill:up-([a-z-]+)\b/i);
-  return match?.[1]?.toLowerCase() ?? null;
-}
-
-function buildUPSkillCommand(skillName: string): string {
-  return `/skill:up-${skillName}`;
-}
-
-function extractActivityFromUPCommand(command: string): string | null {
-  const match = command.match(/^\/skill:up-([a-z-]+)$/i);
-  return match?.[1]?.toLowerCase() ?? null;
-}
-
-function isAutoChainSkill(skillName: string): boolean {
-  return skillName === 'orchestrator' || ACTIVITY_ORDER.includes(skillName as (typeof ACTIVITY_ORDER)[number]);
-}
-
-function formatShortcutList(): string {
-  return AUTO_TOGGLE_SHORTCUTS.map((shortcut) => shortcut.toUpperCase()).join(' | ');
-}
 
 function getIntegrationTone(status: IntegrationEvidence['status']): 'success' | 'warning' | 'muted' {
   if (status === 'ok') return 'success';
@@ -118,58 +93,10 @@ export default function unifiedProcessExtension(pi: ExtensionAPI): void {
     pi.appendEntry('up-state', state);
   };
   const isAutoTransitionEnabled = (): boolean => autoTransitionEnabled;
-  const formatRecommendedNextStatus = (state: UPState | null): string => {
-    if (!state) return '➡️ no-process';
-
-    const explicitNext = getRecommendedNextCommand(state);
-    const effectiveNext = getEffectiveNextCommand(state);
-    if (!effectiveNext) return '➡️ DONE';
-
-    return explicitNext ? `➡️ ${explicitNext} ★` : `➡️ ${effectiveNext}`;
-  };
-  const compactReason = (reason: string, maxLength = 120): string => {
-    const normalized = reason.replace(/\s+/g, ' ').trim();
-    if (normalized.length <= maxLength) return normalized;
-    return `${normalized.slice(0, maxLength - 1)}…`;
-  };
-  const classifyRecommendation = (state: UPState, explicitNext: string) => {
-    const reason = state.recommendedNextReason.toLowerCase();
-    const riskSignals = /(risk|risco|critical|crítico|critico|danger|blocker|blocked|falha|failure|gap|inconsist|unsafe)/i;
-    if (riskSignals.test(reason)) {
-      return { icon: '⚠', label: 'UP risk-aware recommendation', tone: 'warning' as const };
-    }
-
-    if (explicitNext === '/skill:up-orchestrator') {
-      return { icon: '⟳', label: 'UP coordination recommendation', tone: 'accent' as const };
-    }
-
-    if (explicitNext === '/up-next') {
-      return { icon: '▶', label: 'UP forward recommendation', tone: 'success' as const };
-    }
-
-    const linearNext = getNextActivity(state);
-    const linearIndex = linearNext ? ACTIVITY_ORDER.indexOf(linearNext) : -1;
-    const explicitActivity = extractActivityFromUPCommand(explicitNext);
-    const explicitIndex = explicitActivity ? ACTIVITY_ORDER.indexOf(explicitActivity as (typeof ACTIVITY_ORDER)[number]) : -1;
-
-    if (explicitNext === getEffectiveNextCommand(clearRecommendedNextAction(state))) {
-      return { icon: '▶', label: 'UP forward recommendation', tone: 'success' as const };
-    }
-
-    if (explicitIndex >= 0 && linearIndex >= 0 && explicitIndex < linearIndex) {
-      return { icon: '↩', label: 'UP upstream refinement', tone: 'warning' as const };
-    }
-
-    if (explicitIndex >= 0 && linearIndex >= 0 && explicitIndex > linearIndex) {
-      return { icon: '⇢', label: 'UP non-linear jump', tone: 'accent' as const };
-    }
-
-    return { icon: '★', label: 'UP explicit recommendation', tone: 'accent' as const };
-  };
   const buildRecommendationWidgetLines = (ctx: ExtensionContext, state: UPState | null): string[] | undefined => {
     if (!state) return undefined;
 
-    const explicitNext = getRecommendedNextCommand(state);
+    const explicitNext = state.recommendedNextCommand;
     if (!explicitNext) return undefined;
 
     const recommendation = classifyRecommendation(state, explicitNext);
@@ -268,9 +195,26 @@ export default function unifiedProcessExtension(pi: ExtensionAPI): void {
     await refreshIntegrationEvidence(ctx.cwd);
     refreshUPUI(ctx, currentState);
 
-    const upContext = buildUPAgentContext(currentState, {
+    let upContext = buildUPAgentContext(currentState, {
       autoTransitionEnabled,
     });
+
+    // Quality Gate (RF-21) — inject a strict reminder during activities where
+    // tests are being authored or applied. Acceptance: 0 mediocre tests +
+    // 100% RF/RNF coverage before saving TDD or implementation artifacts.
+    const nextActivity = getNextActivity(currentState);
+    if (nextActivity === 'tdd' || nextActivity === 'implementation' || nextActivity === 'use-cases' || nextActivity === 'contracts') {
+      upContext += [
+        '',
+        '--- Mandatory Quality Gate (RF-21) ---',
+        'Before saving TDD plans (10-tdd-plan.md), test batteries (10-tests/*),',
+        'or implementation artifacts, you MUST call up_test_quality_audit(mode="strict")',
+        'and resolve every flagged P1/P2/coverage-gap violation.',
+        'Acceptance: 0 mediocre tests, 0 uncovered RF, 0 uncovered RNF.',
+        'If audit reports failures, rewrite the affected tests and re-audit',
+        'before persisting any further artifact.',
+      ].join('\n');
+    }
 
     return { systemPrompt: event.systemPrompt + upContext };
   });
