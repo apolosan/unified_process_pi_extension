@@ -1,6 +1,6 @@
 # Unified Process pi Extension
 
-**Version:** `1.2.5`
+**Version:** `1.2.6`
 
 Pi package that bundles an Object-Oriented Unified Process workflow for the **pi coding agent**.
 
@@ -51,7 +51,7 @@ Registered commands:
 
 The extension footer/status now also shows the effective next UP command in real time (`up:next`). When the orchestrator persists an explicit recommendation, the extension also renders a compact widget above the editor with the recommended command and rationale, varying the label by recommendation type (forward progression, refinement, jump, coordination, risk-aware).
 
-**Integration verification (v1.2.5):** before declaring implementation or deploy ready, the agent receives a mandatory integration checklist. Run stack/API/smoke/Tier 1 e2e commands, then record evidence with `up_record_integration_check`. The tool writes structured JSONL records to `docs/up/14-implementation/smoke.log` and deploy readiness requires all four check types (`stack_up`, `api_health`, `smoke`, `tier1_integrated_e2e`) with `exit_code: 0`.
+**Integration verification (v1.2.6):** before declaring implementation or deploy ready, the agent receives a mandatory integration checklist. Run stack/API/smoke/Tier 1 e2e commands, then record evidence with `up_record_integration_check`. The tool writes structured JSONL records to `docs/up/14-implementation/smoke.log` and deploy readiness requires all four check types (`stack_up`, `api_health`, `smoke`, `tier1_integrated_e2e`) with `exit_code: 0`.
 
 Registered tools:
 - `up_save_artifact`

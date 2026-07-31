@@ -17,3 +17,5 @@ yarn.lock
 .DS_Store
 *.swp
 *.swo
+
+AGENTS.md
