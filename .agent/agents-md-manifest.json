@@ -1,0 +1,215 @@
+{
+  "generated_at": "2026-07-30T19:30:00Z",
+  "generated_by": "gerador-diretrizes-agents-md",
+  "agnostic_version": "1.0.0-optimized",
+  "agnostic_source": "/home/einar/Documentos/AGNOSTIC_AGENT/AGENTS.md",
+  "project_root": "/home/einar/Documentos/unified_process",
+  "project_name": "@apolosan/unified-process",
+  "project_version": "1.2.5",
+  "existing_agents_md": false,
+  "existing_claude_md": false,
+  "applied_invariants": [
+    "I-1 (Diretriz Fundamental §0)",
+    "I-2 (Princípios Essenciais §2)",
+    "I-3 (Ciclo Obrigatório §3)",
+    "I-4 (5W2H §4)",
+    "I-5 (TDD + qualidade §5)",
+    "I-6 (Lista de testes proibidos §5.4)",
+    "I-7 (Pirâmice de testes - implícita em §5)",
+    "I-8 (Descoberta obrigatória MCP §6)",
+    "I-9 (Fallback local .agent/ §6.2)",
+    "I-10 (Design patterns §7)",
+    "I-11 (Decisão e autonomia §8)",
+    "I-12 (Segurança e governança §9)",
+    "I-13 (Observabilidade §10)",
+    "I-14 (Contratos de I/O §11)",
+    "I-15 (Troubleshooting §12)",
+    "I-16 (Checklist operacional §13)",
+    "I-17 (Glossário §14)"
+  ],
+  "specialized_parametrizables": [
+    {
+      "id": "P-1",
+      "name": "Stack concreto",
+      "value": "Node >=20, TypeScript (type: module, experimental-strip-types), Pi SDK (@mariozechner/pi-coding-agent), TypeBox (@sinclair/typebox), node:test runner",
+      "source": "package.json, README.md",
+      "reason": "Stack do package conforme manifesto npm"
+    },
+    {
+      "id": "P-2",
+      "name": "Comandos reais",
+      "value": "npm test, npm run check, npm run deps:check, npm run deps:install, npm run deps:mcp-template, npm run deps:scan, npm run check:extensions",
+      "source": "package.json scripts",
+      "reason": "Comandos verificados no package.json"
+    },
+    {
+      "id": "P-3",
+      "name": "SLAs/SLOs numéricos",
+      "value": "Suite < 5s. 100% green. Zero P1. 100% RF/RNF traceable. Cobertura >= 80% caminhos críticos",
+      "source": "pi-extension-developer-tdd skill, README.md (98/98)",
+      "reason": "Contrato de qualidade do projeto"
+    },
+    {
+      "id": "P-4",
+      "name": "Restrições regulatórias",
+      "value": "Nenhuma regulatória externa identificada. Boas práticas: sem secrets no código, aprovação para npm publish",
+      "source": "Análise do repositório — sem referências LGPD/HIPAA/SOC2",
+      "reason": "Projeto sem compliance setorial"
+    },
+    {
+      "id": "P-5",
+      "name": "Catálogo MCP esperado",
+      "value": "19 servidores listados com propósito, status esperado e diretriz de uso. UP-essenciais: sequential-thinking, design-patterns, shadcn, radix-mcp-server, flyonui",
+      "source": ".pi/mcp.json (verificado no repositório)",
+      "reason": "19 MCP servers — listagem exaustiva do catálogo real"
+    },
+    {
+      "id": "P-6",
+      "name": "Padrões arquiteturais dominantes",
+      "value": "Extension Pattern, Command Pattern, Tool Registration Pattern, State Machine, Pipeline/Chain Pattern, Strategy Pattern, Mediator Pattern",
+      "source": "Análise do source (index.ts, tools.ts, commands.ts, state.ts, auto-transition.ts, test-quality/)",
+      "reason": "Padrões extraídos da arquitetura real do código"
+    },
+    {
+      "id": "P-7",
+      "name": "Convenções SCM",
+      "value": "Git + Jujutsu colocalizados. Conventional Commits. Feature branches + PR",
+      "source": ".git/, .jj/ — VCS colocalizado detectado",
+      "reason": "Configuração real de VCS do repositório"
+    },
+    {
+      "id": "P-8",
+      "name": "Ambientes de deploy",
+      "value": "npm publish para npmjs.com. GitHub releases",
+      "source": "package.json publishConfig + README.md",
+      "reason": "Package público npm — deploy via npm publish"
+    },
+    {
+      "id": "P-9",
+      "name": "Métricas-alvo concretas",
+      "value": "Suite < 5s. 100% green. Zero P1. 100% RF/RNF traceable. Cobertura >= 80% caminhos críticos",
+      "source": "README.md, pi-extension-developer-tdd skill",
+      "reason": "SLOs de qualidade definidos pelo contrato do projeto"
+    },
+    {
+      "id": "P-10",
+      "name": "Paths de docs/ADRs internas",
+      "value": "docs/up/, README.md, CHANGELOG.md",
+      "source": "Tree do repositório",
+      "reason": "Documentação existente no projeto"
+    },
+    {
+      "id": "P-11",
+      "name": "Dependências externas críticas",
+      "value": "Pi SDK (peerDependency), TypeBox (peerDependency), design-patterns MCP (servidor público), shadcn/radix/flyonui MCPs, mmdc CLI, docker",
+      "source": "package.json + .pi/mcp.json + README.md",
+      "reason": "Peer deps + MCP servers requeridos pelas skills"
+    },
+    {
+      "id": "P-12",
+      "name": "Do/Don't específicos",
+      "value": "Apêndice B com 11 Do's e 10 Don'ts específicos do stack e projeto",
+      "source": "package.json, .pi/mcp.json, README.md, análise do source",
+      "reason": "Regras verificadas no manifesto do projeto"
+    },
+    {
+      "id": "P-13",
+      "name": "Estrutura do projeto",
+      "value": "Apêndice A com tree completa do repositório e descrição de cada diretório",
+      "source": "Tree real do repositório (ls -la + find)",
+      "reason": "Mapeamento exaustivo da estrutura de diretórios"
+    },
+    {
+      "id": "P-14",
+      "name": "Good/bad examples",
+      "value": "Referências a tools.ts, commands.ts, state.ts, test-quality/ como exemplos reais de código",
+      "source": "Análise do source tree",
+      "reason": "Exemplos apontando para arquivos reais do repositório"
+    },
+    {
+      "id": "P-15",
+      "name": "PR checklist específico",
+      "value": "Checklist com 8 itens específicos do projeto (npm test, npm run check, audit, P1, RF/RNF, secrets, schemas, handoff)",
+      "source": "README.md + test-quality module + package.json",
+      "reason": "Checklist derivado dos gates de qualidade existentes"
+    },
+    {
+      "id": "P-16",
+      "name": "Protocolo de incerteza",
+      "value": "Apêndice C com 6 situações de incerteza e ações correspondentes",
+      "source": "agentsmd.io best practices + análise dos riscos do projeto",
+      "reason": "Mapeamento de situações de blocking state do projeto"
+    }
+  ],
+  "nested_agents_md": [],
+  "unresolved_gaps": [
+    "Stack alvo dos artefatos gerados pelo UP process (definido por up-tech-stack por projeto — não aplicável a este meta-package)",
+    "SLAs/SLOs de latência p95 e throughput (não aplicável — projeto sem runtime de produção)"
+  ],
+  "divergencias_registradas": [],
+  "references_consulted": [
+    {
+      "url": "/home/einar/Documentos/AGNOSTIC_AGENT/AGENTS.md",
+      "accessed_at": "2026-07-30",
+      "snippet_used": "Diretriz-base completa — todas as seções 0-14 mantidas como invariantes"
+    },
+    {
+      "url": "/home/einar/Documentos/unified_process/package.json",
+      "accessed_at": "2026-07-30",
+      "snippet_used": "Nome, versão, scripts, peerDependencies, config Pi"
+    },
+    {
+      "url": "/home/einar/Documentos/unified_process/README.md",
+      "accessed_at": "2026-07-30",
+      "snippet_used": "Descrição do package, comandos, MCP servers, dependências externas"
+    },
+    {
+      "url": "/home/einar/Documentos/unified_process/.pi/mcp.json",
+      "accessed_at": "2026-07-30",
+      "snippet_used": "Catálogo completo de 19 MCP servers com status e autenticação"
+    },
+    {
+      "url": "/home/einar/Documentos/unified_process/extensions/unified-process/src/tools.ts",
+      "accessed_at": "2026-07-30",
+      "snippet_used": "Schema de 7 ferramentas registradas — patterns e contratos"
+    },
+    {
+      "url": "/home/einar/Documentos/unified_process/extensions/unified-process/src/commands.ts",
+      "accessed_at": "2026-07-30",
+      "snippet_used": "5 slash commands + 2 admin — fluxo de auto-transition"
+    },
+    {
+      "url": "/home/einar/Documentos/unified_process/extensions/unified-process/index.ts",
+      "accessed_at": "2026-07-30",
+      "snippet_used": "Entrypoint da extensão — Extension Pattern, ciclo de vida"
+    },
+    {
+      "url": "/home/einar/Documentos/unified_process/docs/up/05-test-quality-enforcement.md",
+      "accessed_at": "2026-07-30",
+      "snippet_used": "Contrato de anotação RF/RNF, módulo test-quality, gate de qualidade"
+    },
+    {
+      "url": "/home/einar/Documentos/unified_process/docs/up/12b-integration-matrix.md",
+      "accessed_at": "2026-07-30",
+      "snippet_used": "Template de integração P0 — requisito de smoke.log"
+    },
+    {
+      "url": "/home/einar/Documentos/unified_process/.gitignore",
+      "accessed_at": "2026-07-30",
+      "snippet_used": "Arquivos ignorados (.aim/, .vector-memory/, data/, papers/)"
+    }
+  ],
+  "auto_checklist": {
+    "invariants_present": true,
+    "parametrizables_sourced": true,
+    "critical_restrictions_top": true,
+    "budget_under_100_instructions": true,
+    "binary_rules_no_subjective": true,
+    "positive_alternatives_paired": true,
+    "not_aspirational": true,
+    "unconditional": true,
+    "no_credentials_leaked": true,
+    "manifesto_written": true,
+    "size_KB": 36
+  }
+}
