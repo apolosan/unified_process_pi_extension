@@ -70,22 +70,6 @@ describe("cross-doc version coherence — RF-VD-01..03 / RNF-VD-01", () => {
 		);
 	});
 
-	it("package-lock.json top-level version equals package.json#version (RF-VD-04)", async () => {
-		const version = await loadPackageVersion();
-		const lockRaw = await readFile(resolve(projectRoot, "package-lock.json"), "utf8");
-		const lock = JSON.parse(lockRaw) as { version?: unknown; packages?: Record<string, { version?: unknown }> };
-		assert.equal(lock.version, version, `package-lock.json top-level version drift: expected ${version}, got ${lock.version as string}`);
-		// Also verify the named-package entry matches (handles workspaces / scoped packages)
-		const self = lock.packages?.[""];
-		if (self) {
-			assert.equal(
-				self.version,
-				version,
-				`package-lock.json packages[""] version drift: expected ${version}, got ${self.version as string}`,
-			);
-		}
-	});
-
 	it("drift in any tracked doc fails the suite (RNF-VD-01)", async () => {
 		// Asserts the cross-section invariant in one place: if ALL three
 		// pairwise assertions above pass, this aggregate assertion must

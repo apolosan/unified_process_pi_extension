@@ -5,7 +5,7 @@
   "agnostic_source": "/home/einar/Documentos/AGNOSTIC_AGENT/AGENTS.md",
   "project_root": "/home/einar/Documentos/unified_process",
   "project_name": "@apolosan/unified-process",
-  "project_version": "1.2.7",
+  "project_version": "1.2.6",
   "existing_agents_md": false,
   "existing_claude_md": false,
   "applied_invariants": [
