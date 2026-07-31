@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.2.7] - 2026-07-31
+
+### Fixed
+- `package-lock.json` top-level `version` was stale at `1.2.5` (was missed when bumping to `1.2.6` because `npm install` was not re-run). Regenerated via `npm install --package-lock-only`. The 1.2.6 npm release therefore shipped with a stale lockfile and is now superseded.
+
 ## [1.2.6] - 2026-07-31
 
 ### Fixed
