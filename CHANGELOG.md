@@ -2,14 +2,6 @@
 
 All notable changes to this project are documented in this file.
 
-## [1.2.6] - 2026-07-31
-
-### Fixed
-- README on npm registry was stale at `1.2.3` (tarball from a prior publish). Bumped to `1.2.6` and republishing so the npm registry surface matches the GitHub source.
-
-### Tests
-- Added `version-coherence.test.ts` (4 assertions, RF-VD-01..03 / RNF-VD-01): every tracked forward-facing doc that names the package version (`package.json`, `README.md`, `CHANGELOG.md` head, `.agent/agents-md-manifest.json`) must share a single version string. Future drift fails `npm run check`.
-
 ## [1.2.5] - 2026-07-30
 
 ### Tests
