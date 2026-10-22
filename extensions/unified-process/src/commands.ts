@@ -296,17 +296,42 @@ Artifacts found: ${state.artifacts.length}`,
       const normalized = args.trim().toLowerCase();
       const mode: 'report' | 'strict' =
         normalized === 'report' ? 'report' : 'strict';
-      const audit = await runTestQualityAudit({ cwd: ctx.cwd, mode });
+      let audit: Awaited<ReturnType<typeof runTestQualityAudit>>;
+      try {
+        audit = await runTestQualityAudit({ cwd: ctx.cwd, mode });
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        ctx.ui.notify(`📊 UP audit (${mode}) — BLOCKED: ${reason}`, 'warning');
+        return;
+      }
       const lines = [
         `📊 UP audit (${mode}) — passed: ${audit.passed ? 'yes' : 'no'}`,
         `Files: ${audit.totals.files}  Tests: ${audit.totals.tests}`,
         `Mediocre: ${audit.totals.mediocre}  Uncovered RF: ${audit.totals.uncoveredRf}  Uncovered RNF: ${audit.totals.uncoveredRnf}`,
+        `Surface: ${audit.totals.surfaceItems} items  Uncovered surface: ${audit.totals.uncoveredSurface}  Exempted: ${audit.totals.exemptedSurface}`,
+        `Test types: ${audit.surface.types.declared.join(', ') || '(none)'}`,
+        ...(audit.surface.types.shortfall.length
+          ? [
+              `Planned vs delivered: ${audit.surface.types.shortfall
+                .map((s) => `${s.type} ${s.actual}/${s.planned}`)
+                .join(', ')}`,
+            ]
+          : []),
       ];
       if (audit.issues.length) {
         lines.push('Issues:');
         for (const i of audit.issues.slice(0, 30)) {
           lines.push(`  [${i.type}] ${i.file.split('/').slice(-2).join('/')}:${i.line}  ${i.testName} — ${i.message}`);
         }
+      }
+      if (audit.surface.uncovered.length) {
+        lines.push('Uncovered surface:');
+        for (const s of audit.surface.uncovered.slice(0, 30)) {
+          lines.push(`  ${s.id} [${s.kind}] ${s.file.split('/').slice(-2).join('/')} — ${s.title}`);
+        }
+      }
+      if (audit.surface.types.missingMandatory.length) {
+        lines.push(`Missing mandatory test types: ${audit.surface.types.missingMandatory.join(', ')}`);
       }
       if (!audit.passed && mode === 'strict') {
         ctx.ui.notify(lines.join('\n'), 'warning');

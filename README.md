@@ -1,6 +1,6 @@
 # Unified Process pi Extension
 
-**Version:** `1.2.5`
+**Version:** `1.3.0`
 
 Pi package that bundles an Object-Oriented Unified Process workflow for the **pi coding agent**.
 
@@ -51,7 +51,7 @@ Registered commands:
 
 The extension footer/status now also shows the effective next UP command in real time (`up:next`). When the orchestrator persists an explicit recommendation, the extension also renders a compact widget above the editor with the recommended command and rationale, varying the label by recommendation type (forward progression, refinement, jump, coordination, risk-aware).
 
-**Integration verification (v1.2.5):** before declaring implementation or deploy ready, the agent receives a mandatory integration checklist. Run stack/API/smoke/Tier 1 e2e commands, then record evidence with `up_record_integration_check`. The tool writes structured JSONL records to `docs/up/14-implementation/smoke.log` and deploy readiness requires all four check types (`stack_up`, `api_health`, `smoke`, `tier1_integrated_e2e`) with `exit_code: 0`.
+**Integration verification (v1.3.0):** before declaring implementation or deploy ready, the agent receives a mandatory integration checklist. Run stack/API/smoke/Tier 1 e2e commands, then record evidence with `up_record_integration_check`. The tool writes structured JSONL records to `docs/up/14-implementation/smoke.log` and deploy readiness requires all four check types (`stack_up`, `api_health`, `smoke`, `tier1_integrated_e2e`) with `exit_code: 0`.
 
 Registered tools:
 - `up_save_artifact`
@@ -60,6 +60,17 @@ Registered tools:
 - `up_list_artifacts`
 - `up_record_integration_check` — record check type, command, exit code, and timestamp to `smoke.log`
 - `up_require_paths` — validate required integration paths (API, tests, matrix, operations, env template)
+- `up_test_quality_audit` — audit the test battery against the anti-mediocre rules (P1), RF/RNF traceability, the UP test surface (use cases, flows, contracts, operations) and the test-type matrix; `mode="strict"` blocks the phase
+- `up_generate_handoff` — write `docs/up/15-handoff/HANDOFF-iter-{N}-{ISO}.md` with completion status, uncovered requirements, uncovered surface and the last smoke evidence
+
+### Test-quality enforcement
+
+`up_test_quality_audit` (and `/up-audit`) enforces four axes over the battery:
+
+1. **Anti-mediocre** (P1) — rejects `toBeDefined`-only, trivial names, vendor-targeting and blind-snapshot tests. Fixtures embedded in string literals are not mistaken for tests.
+2. **Traceability** — every `RF-NN` / `RNF-NN` of `docs/up/02-requirements.md` must be referenced by an `@rf` / `@rnf` marker (ranges like `RF-09..12` are supported).
+3. **Surface coverage** — every use case, use-case flow, system operation, contract post-condition and contract exception must be claimed by a `@surface` marker on a non-mediocre test; the TDD plan can justify an exclusion.
+4. **Type matrix** — the `@type` slots must cover the taxonomy committed in `docs/up/10-tdd-plan.md`; the audit reports `planned vs delivered` per type.
 
 ### Skills
 

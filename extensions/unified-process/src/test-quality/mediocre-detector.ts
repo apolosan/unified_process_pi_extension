@@ -35,6 +35,13 @@ interface TestBlock {
   body: string;
   rf?: string;
   rnf?: string;
+  /** Every requirement id claimed by the test (ranges are expanded). */
+  rfIds: string[];
+  rnfIds: string[];
+  /** Surface ids claimed by the test — see `surface-coverage.ts`. */
+  surface: string[];
+  /** Test type declared by the test (UNIT, INTEGRATION, E2E-T1, …). */
+  type?: string;
 }
 
 const FRAMEWORK_VENDOR_NAMES = new Set([
@@ -55,9 +62,11 @@ const FRAMEWORK_VENDOR_NAMES = new Set([
 
 const TRIVIAL_NAME_PATTERNS = [/^should\s+work$/i, /^works?$/i, /^basic\s+\w+$/i, /^smoke$/i];
 
-const TEST_HEAD_REGEX = /\b(it|test)\s*\(\s*['"`]([^'"`]+)['"`]\s*,/;
-const JSDOC_RF = /@rf\s+(RF-\d+)/;
-const JSDOC_RNF = /@rnf\s+(RNF-\d+)/;
+const TEST_HEAD_REGEX = /(?<![.\w])(it|test)\s*\(\s*(['"`])/;
+const JSDOC_RF = /@rf\s+(RF-\d+(?:\.\.\d+)?)/g;
+const JSDOC_RNF = /@rnf\s+(RNF-\d+(?:\.\.\d+)?)/g;
+const JSDOC_SURFACE = /@surface\s+([^*\n]+)/g;
+const JSDOC_TYPE = /@type\s+([A-Za-z0-9-]+)/i;
 
 export function detectMediocrePatterns(source: string, filePath: string): MediocreIssue[] {
   const issues: MediocreIssue[] = [];
@@ -66,18 +75,84 @@ export function detectMediocrePatterns(source: string, filePath: string): Medioc
   return issues;
 }
 
+/**
+ * Blanks the contents of string literals and comments while preserving offsets
+ * and line structure, so the scanner never mistakes a fixture (a test head
+ * embedded in a template literal) or a commented-out test for a real test
+ * block. Quote delimiters are kept so the shape of the code stays readable.
+ */
+export function maskLiteralsAndComments(source: string): string {
+  const out = source.split('');
+  const n = source.length;
+  let i = 0;
+
+  while (i < n) {
+    const ch = source[i];
+    const next = source[i + 1];
+
+    if (ch === '/' && next === '/') {
+      while (i < n && source[i] !== '\n') {
+        out[i] = ' ';
+        i += 1;
+      }
+      continue;
+    }
+
+    if (ch === '/' && next === '*') {
+      out[i] = ' ';
+      out[i + 1] = ' ';
+      i += 2;
+      while (i < n && !(source[i] === '*' && source[i + 1] === '/')) {
+        if (source[i] !== '\n') out[i] = ' ';
+        i += 1;
+      }
+      if (i < n) {
+        out[i] = ' ';
+        out[i + 1] = ' ';
+        i += 2;
+      }
+      continue;
+    }
+
+    if (ch === '"' || ch === "'" || ch === '`') {
+      const quote = ch;
+      i += 1;
+      while (i < n) {
+        const c = source[i];
+        if (c === '\\') {
+          out[i] = ' ';
+          if (i + 1 < n && source[i + 1] !== '\n') out[i + 1] = ' ';
+          i += 2;
+          continue;
+        }
+        if (c === quote) break;
+        if (c !== '\n') out[i] = ' ';
+        i += 1;
+      }
+      if (i < n) i += 1;
+      continue;
+    }
+
+    i += 1;
+  }
+
+  return out.join('');
+}
+
 export function extractTestBlocks(source: string): TestBlock[] {
   const blocks: TestBlock[] = [];
   const lines = source.split(/\r?\n/);
+  const maskedLines = maskLiteralsAndComments(source).split(/\r?\n/);
 
-  for (let i = 0; i < lines.length; i++) {
-    const match = (lines[i] ?? '').match(TEST_HEAD_REGEX);
+  for (let i = 0; i < maskedLines.length; i++) {
+    const match = maskedLines[i]?.match(TEST_HEAD_REGEX);
     if (!match) continue;
 
-    const name = match[2] ?? '';
+    const quoteIndex = (match.index ?? 0) + match[0].length - 1;
+    const name = readStringLiteral(lines[i] ?? '', quoteIndex);
     const startLine = i + 1;
     const annotations = captureAnnotations(lines, i);
-    const body = sliceBody(lines, i);
+    const body = sliceBody(lines, maskedLines, i);
 
     blocks.push({
       name,
@@ -85,12 +160,44 @@ export function extractTestBlocks(source: string): TestBlock[] {
       body,
       rf: annotations.rf,
       rnf: annotations.rnf,
+      rfIds: annotations.rfIds,
+      rnfIds: annotations.rnfIds,
+      surface: annotations.surface,
+      type: annotations.type,
     });
   }
   return blocks;
 }
 
-function captureAnnotations(lines: string[], headLineIndex: number): { rf?: string; rnf?: string } {
+/** Reads the string literal that starts at `quoteIndex` in the original line. */
+function readStringLiteral(line: string, quoteIndex: number): string {
+  const quote = line[quoteIndex];
+  if (!quote) return '';
+  let out = '';
+  for (let i = quoteIndex + 1; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '\\') {
+      out += line[i + 1] ?? '';
+      i += 1;
+      continue;
+    }
+    if (ch === quote) break;
+    out += ch;
+  }
+  return out;
+}
+
+function captureAnnotations(
+  lines: string[],
+  headLineIndex: number,
+): {
+  rf?: string;
+  rnf?: string;
+  rfIds: string[];
+  rnfIds: string[];
+  surface: string[];
+  type?: string;
+} {
   const collected: string[] = [];
   for (let j = headLineIndex - 1; j >= Math.max(0, headLineIndex - 12); j--) {
     const trimmed = (lines[j] ?? '').trim();
@@ -107,26 +214,63 @@ function captureAnnotations(lines: string[], headLineIndex: number): { rf?: stri
     collected.unshift(lines[j] ?? '');
   }
 
-  if (collected.length === 0) return {};
+  if (collected.length === 0) return { rfIds: [], rnfIds: [], surface: [] };
   const text = collected.join('\n');
-  const rfMatch = text.match(JSDOC_RF);
-  const rnfMatch = text.match(JSDOC_RNF);
-  if (rfMatch) return { rf: rfMatch[1], rnf: rnfMatch?.[1] };
-  return { rnf: rnfMatch?.[1] };
+  const rfIds = expandIds([...text.matchAll(JSDOC_RF)].map((m) => m[1] ?? ''));
+  const rnfIds = expandIds([...text.matchAll(JSDOC_RNF)].map((m) => m[1] ?? ''));
+  const surface: string[] = [];
+  for (const match of text.matchAll(JSDOC_SURFACE)) {
+    for (const id of (match[1] ?? '').split(/[,\s]+/)) {
+      const clean = id.trim().replace(/[.;]+$/, '');
+      if (clean.length > 0) surface.push(clean);
+    }
+  }
+  const typeMatch = text.match(JSDOC_TYPE);
+  return {
+    rf: rfIds[0],
+    rnf: rnfIds[0],
+    rfIds,
+    rnfIds,
+    surface,
+    type: typeMatch?.[1]?.toUpperCase(),
+  };
 }
 
-function sliceBody(lines: string[], headLineIndex: number): string {
-  const tail = lines.slice(headLineIndex).join('\n');
-  const openIdx = tail.indexOf('{');
+/** Expands `RF-09..12` style ranges into the individual requirement ids. */
+function expandIds(rawIds: string[]): string[] {
+  const ids: string[] = [];
+  for (const raw of rawIds) {
+    const parsed = raw.match(/^([A-Z]+)-(\d+)(?:\.\.(\d+))?$/);
+    if (!parsed) continue;
+    const prefix = parsed[1] ?? '';
+    const from = Number(parsed[2]);
+    const to = parsed[3] ? Number(parsed[3]) : from;
+    const width = (parsed[2] ?? '').length;
+    for (let i = from; i <= to; i++) {
+      const id = `${prefix}-${String(i).padStart(width, '0')}`;
+      if (!ids.includes(id)) ids.push(id);
+    }
+  }
+  return ids;
+}
+
+function sliceBody(lines: string[], maskedLines: string[], headLineIndex: number): string {
+  const maskedTail = maskedLines.slice(headLineIndex).join('\n');
+  const openIdx = maskedTail.indexOf('{');
   if (openIdx < 0) return '';
 
   let depth = 0;
-  for (let k = openIdx; k < tail.length; k++) {
-    const ch = tail[k];
+  for (let k = openIdx; k < maskedTail.length; k++) {
+    const ch = maskedTail[k];
     if (ch === '{') depth++;
     else if (ch === '}') {
       depth--;
-      if (depth === 0) return tail.slice(openIdx + 1, k);
+      if (depth === 0) {
+        // The masked body is used on purpose: string literals are blanked, so
+        // a fixture embedded in the test body cannot masquerade as a real
+        // assertion (and cannot trip the rule chain).
+        return maskedTail.slice(openIdx + 1, k);
+      }
     }
   }
   return '';

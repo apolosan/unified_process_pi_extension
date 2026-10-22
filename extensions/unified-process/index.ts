@@ -204,7 +204,8 @@ export default function unifiedProcessExtension(pi: ExtensionAPI): void {
 
     // Quality Gate (RF-21) — inject a strict reminder during activities where
     // tests are being authored or applied. Acceptance: 0 mediocre tests +
-    // 100% RF/RNF coverage before saving TDD or implementation artifacts.
+    // 100% RF/RNF coverage + total surface coverage before saving TDD or
+    // implementation artifacts.
     const nextActivity = getNextActivity(currentState);
     if (nextActivity === 'tdd' || nextActivity === 'implementation' || nextActivity === 'use-cases' || nextActivity === 'contracts') {
       upContext += [
@@ -213,7 +214,10 @@ export default function unifiedProcessExtension(pi: ExtensionAPI): void {
         'Before saving TDD plans (10-tdd-plan.md), test batteries (10-tests/*),',
         'or implementation artifacts, you MUST call up_test_quality_audit(mode="strict")',
         'and resolve every flagged P1/P2/coverage-gap violation.',
-        'Acceptance: 0 mediocre tests, 0 uncovered RF, 0 uncovered RNF.',
+        'Acceptance: 0 mediocre tests, 0 uncovered RF, 0 uncovered RNF,',
+        '0 uncovered surface items (every use case, flow, operation,',
+        'post-condition and exception claimed via @surface by a non-mediocre test),',
+        'and a complete @type matrix (UNIT, INTEGRATION, E2E-T1, E2E-T2 + one NFR type).',
         'If audit reports failures, rewrite the affected tests and re-audit',
         'before persisting any further artifact.',
       ].join('\n');

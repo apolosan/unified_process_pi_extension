@@ -231,6 +231,10 @@ Four parallel rules. Violation of any single rule blocks the phase:
 | RF-22 | **100% RF/RNF coverage** | Every `RF-NN` and `RNF-NN` declared in `docs/up/02-requirements.md` must be referenced by at least one `@rf` / `@rnf` JSDoc marker on a real `it()` block. |
 | RF-23 | **Annotated JSDoc on every test** | Each `it()` must carry `@rf` and/or `@rnf` markers immediately above the test head. Unmarked tests fail the gate. |
 | RF-24 | **Tier 1 integrated e2e before D1–D6** | No deployment is declared ready unless `up_record_integration_check` shows a Tier-1 entry with `exit_code: 0`. |
+| RF-25 | **Total surface coverage** | Every use case, use-case flow, system operation, contract post-condition and contract exception must be claimed by a test via `@surface`. |
+| RF-26 | **Anti-mediocre coverage** | A surface claim only counts when the claiming test passes the P1 rule chain. |
+| RF-27 | **Mandatory type matrix** | When the battery declares `@type` values, `UNIT + INTEGRATION + E2E-T1 + E2E-T2 + one NFR type` must be present — unless the TDD plan declares a different taxonomy, which then wins. |
+| RF-28 | **Plan-driven exclusions** | A surface item the TDD plan justifies as excluded is reported as exempted, not as a gap. |
 
 ### Test Annotation Contract
 
@@ -253,6 +257,41 @@ Multi-marker lines also work:
 // @rf RF-08 @rnf RNF-02
 it('p95 latency budget under 500 concurrent users', () => { … });
 ```
+
+### Surface & Type Markers (RF-25..27)
+
+The **extent** axis of the gate needs two more markers. Both live in the same
+comment block above the `it()`:
+
+```ts
+/**
+ * @rf RF-25
+ * @surface UC-03-MAIN, UC-03-EXCEPTION-3A
+ * @type E2E-T1
+ */
+it('rejects an order whose customer does not exist', () => { … });
+```
+
+| Marker | Meaning | Values |
+|---|---|---|
+| `@surface <ID>[, <ID>…]` | Which parts of the declared test surface this test covers | `UC-NN`, `UC-NN-MAIN`, `UC-NN-VARIANT-…`, `UC-NN-EXCEPTION-…`, `OP-<operation>`, `OP-<operation>-PCn`, `OP-<operation>-EXn` |
+| `@type <TYPE>` | Which slot of the test-type matrix this test occupies | `UNIT`, `INTEGRATION`, `COMPONENT`, `UI`, `E2E-T1`, `E2E-T2`, `PERF`, `LOAD`, `STRESS`, `SEC`, `A11Y`, `REG`, `SMOKE`, `CONTRACT`, `MUTATION`, `PROPERTY`, `SNAPSHOT` |
+
+Rules enforced by `up_test_quality_audit(mode="strict")`:
+
+1. Every surface item derived from the UP artifacts (use cases + flows,
+   contracts + post-conditions/exceptions) must be claimed by **at least one
+   test**.
+2. A claim only counts when the claiming test is **not** mediocre — a P1
+   violation does not buy coverage (RNF-08).
+3. When the battery declares at least one `@type`, the mandatory matrix
+   `UNIT + INTEGRATION + E2E-T1 + E2E-T2 + one NFR type` must be complete. A
+   battery that declares no `@type` at all is reported as “no types declared”
+   and never blocks the gate.
+
+The audit reports `expectedMinCases` (one case per surface item) next to the
+actual number of test blocks, so the agent can see how much of the maximum
+possible battery is still missing.
 
 ### Handoff on Incomplete Transition (RNF-07)
 

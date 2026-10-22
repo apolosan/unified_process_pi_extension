@@ -82,11 +82,17 @@ function composeHandoffInput(
       mediocre: a.totals.mediocre,
       uncoveredRf: a.totals.uncoveredRf,
       uncoveredRnf: a.totals.uncoveredRnf,
+      uncoveredSurface: a.totals.uncoveredSurface,
     },
     uncovered: [
       ...a.coverage.uncoveredRf,
       ...a.coverage.uncoveredRnf,
     ],
+    uncoveredSurface: a.surface.uncovered.map((s) => ({
+      id: s.id,
+      kind: s.kind,
+      title: s.title,
+    })),
     outputDir: input.outputDir ?? DEFAULT_OUTPUT_DIR,
     timestamp: input.timestamp ?? new Date().toISOString(),
     recoveryPointers: input.recoveryPointers,

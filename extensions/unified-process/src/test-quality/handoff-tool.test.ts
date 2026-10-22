@@ -52,7 +52,16 @@ function fakeAudit(overrides: Partial<AuditReport> = {}): AuditReport {
     mode: 'strict',
     cwd: '/tmp/example',
     requirementsFile: 'docs/up/02-requirements.md',
-    totals: { files: 0, tests: 0, mediocre: 0, uncoveredRf: 0, uncoveredRnf: 0 },
+    totals: {
+      files: 0,
+      tests: 0,
+      mediocre: 0,
+      uncoveredRf: 0,
+      uncoveredRnf: 0,
+      surfaceItems: 0,
+      uncoveredSurface: 0,
+      exemptedSurface: 0,
+    },
     issues: [],
     coverage: {
       requirements: [],
@@ -61,6 +70,17 @@ function fakeAudit(overrides: Partial<AuditReport> = {}): AuditReport {
       coveredRnf: [],
       uncoveredRf: [],
       uncoveredRnf: [],
+    },
+    surface: {
+      items: [],
+      covered: [],
+      uncovered: [],
+      claimedBy: {},
+      expectedMinCases: 0,
+      actualCases: 0,
+      types: { declared: [], missingMandatory: [], satisfied: true, planned: [], shortfall: [] },
+      sources: [],
+      exempted: [],
     },
     passed: true,
     ...overrides,
@@ -74,6 +94,7 @@ async function writeSmokeLog(projectDir: string, content: string): Promise<void>
 }
 
 describe('writeHandoffDocument — RF-12 file-write gate', () => {
+  // @rf RF-42
   it('writes a HANDOFF-iter-N-*.md file under docs/up/15-handoff and returns its path', async () => {
     const dir = await setupProject();
     const result = await writeHandoffDocument({
@@ -91,6 +112,7 @@ describe('writeHandoffDocument — RF-12 file-write gate', () => {
     await rm(dir, { recursive: true, force: true });
   });
 
+  // @rf RF-42
   it('returns a `warnings` array when smoke.log is missing', async () => {
     const dir = await setupProject();
     const result = await writeHandoffDocument({
@@ -107,6 +129,7 @@ describe('writeHandoffDocument — RF-12 file-write gate', () => {
     await rm(dir, { recursive: true, force: true });
   });
 
+  // @rf RF-42
   it('does not raise when smoke.log exists with valid entries', async () => {
     const dir = await setupProject();
     await writeSmokeLog(
@@ -131,6 +154,7 @@ exit_code: 0
     await rm(dir, { recursive: true, force: true });
   });
 
+  // @rf RF-42
   it('writes a deterministic filename for a given iteration + timestamp', async () => {
     const dir = await setupProject();
     const input: WriteHandoffInput = {
@@ -148,6 +172,7 @@ exit_code: 0
 });
 
 describe('writeHandoffDocument — RF-19 smoke.log parsing', () => {
+  // @rf RF-42
   it('parses latest 5 entries with command + exit code + timestamp into the markdown body', async () => {
     const dir = await setupProject();
     const blocks: string[] = [];

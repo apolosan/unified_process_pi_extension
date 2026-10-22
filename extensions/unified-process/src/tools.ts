@@ -319,11 +319,37 @@ export function registerTools(
     }),
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
       const mode = (params.mode === 'strict' ? 'strict' : 'report') as 'report' | 'strict';
-      const report = await runTestQualityAudit({
-        cwd: ctx.cwd,
-        mode,
-        requirementsFile: params.requirementsFile,
-      });
+      const scope = params.scope === 'extensions' ? ('extensions' as const) : ('project' as const);
+
+      let report: Awaited<ReturnType<typeof runTestQualityAudit>>;
+      try {
+        report = await runTestQualityAudit({
+          cwd: ctx.cwd,
+          mode,
+          requirementsFile: params.requirementsFile,
+          scope,
+        });
+      } catch (error) {
+        // Strict mode refuses to pass silently; the agent gets an actionable
+        // report instead of an exception.
+        const reason = error instanceof Error ? error.message : String(error);
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: [
+                `Audit (${mode}) — BLOCKED: passed: no`,
+                reason,
+                '',
+                'Strict mode needs a parseable requirements document (docs/up/02-requirements.md',
+                'by default). Fix the artifact or run the audit in report mode.',
+              ].join('\n'),
+            },
+          ],
+          details: { blocked: true, reason, mode },
+        };
+      }
+
       const lines = [
         `Audit (${report.mode}) — passed: ${report.passed ? 'yes' : 'no'}`,
         `Files scanned: ${report.totals.files}`,
@@ -331,6 +357,15 @@ export function registerTools(
         `Mediocre issues: ${report.totals.mediocre}`,
         `Uncovered RF: ${report.totals.uncoveredRf}`,
         `Uncovered RNF: ${report.totals.uncoveredRnf}`,
+        `Surface items: ${report.totals.surfaceItems} (uncovered: ${report.totals.uncoveredSurface}, exempted: ${report.totals.exemptedSurface})`,
+        `Test types declared: ${report.surface.types.declared.join(', ') || '(none)'}`,
+        ...(report.surface.types.shortfall.length
+          ? [
+              `Planned vs delivered: ${report.surface.types.shortfall
+                .map((s) => `${s.type} ${s.actual}/${s.planned}`)
+                .join(', ')}`,
+            ]
+          : []),
         '',
         ...(report.totals.mediocre
           ? [
@@ -352,6 +387,27 @@ export function registerTools(
           ? [
               'Uncovered RNF:',
               ...report.coverage.uncoveredRnf.map((r) => `  ${r.id}: ${r.title}`),
+            ]
+          : []),
+        '',
+        ...(report.surface.uncovered.length
+          ? [
+              'Uncovered surface (each needs a non-mediocre test claiming it with @surface):',
+              ...report.surface.uncovered.map(
+                (s) => `  ${s.id} [${s.kind}] ${s.file}:${s.line} — ${s.title}`,
+              ),
+            ]
+          : []),
+        ...(report.surface.exempted.length
+          ? [
+              'Exempted surface (justified in the TDD plan):',
+              ...report.surface.exempted.map((s) => `  ${s.id} [${s.kind}] — ${s.title}`),
+            ]
+          : []),
+        ...(report.surface.types.missingMandatory.length
+          ? [
+              'Missing mandatory test types:',
+              ...report.surface.types.missingMandatory.map((t) => `  ${t}`),
             ]
           : []),
       ];

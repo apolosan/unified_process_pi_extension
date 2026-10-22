@@ -46,6 +46,7 @@ describe('generateHandoffMarkdown — header & identity', () => {
 });
 
 describe('generateHandoffMarkdown — RF-17 completion table', () => {
+  // @rf RF-17
   it('RF-17: includes every entry of ACTIVITY_ORDER with ✅/❌ marker', () => {
     const md = generateHandoffMarkdown(
       baseInput({ completedActivities: ['vision', 'requirements'] }),
@@ -75,6 +76,7 @@ describe('generateHandoffMarkdown — RF-17 completion table', () => {
 });
 
 describe('generateHandoffMarkdown — RF-18 uncovered requirements', () => {
+  // @rf RF-18
   it('RF-18: emits the Uncovered Requirements section only when at least 1 uncovered exists', () => {
     const without = generateHandoffMarkdown(baseInput({ uncovered: [] }));
     assert.equal(/## 3\. Uncovered Requirements/.test(without), false);
@@ -98,6 +100,7 @@ describe('generateHandoffMarkdown — RF-18 uncovered requirements', () => {
 });
 
 describe('generateHandoffMarkdown — RF-19 last integration evidence', () => {
+  // @rf RF-19
   it('RF-19: lists up to 5 most recent smoke.log entries with command + exit + timestamp', () => {
     const entries = Array.from({ length: 8 }, (_, i) => ({
       timestamp: `2026-03-28T09:${String(i).padStart(2, '0')}:00Z`,
@@ -120,6 +123,7 @@ describe('generateHandoffMarkdown — RF-19 last integration evidence', () => {
 });
 
 describe('generateHandoffMarkdown — RF-20 resume instructions', () => {
+  // @rf RF-20
   it('RF-20: includes a numbered Resume Instructions block referencing /up and /skill:up-...', () => {
     const md = generateHandoffMarkdown(baseInput());
     assert.match(md, /## 6\. Resume Instructions/);
@@ -137,12 +141,14 @@ describe('generateHandoffMarkdown — RF-20 resume instructions', () => {
 });
 
 describe('generateHandoffMarkdown — RNF-03 determinism + RNF-04 bounds', () => {
+  // @rnf RNF-03
   it('RNF-03: byte-identical for identical input (caller-provided timestamp)', () => {
     const md1 = generateHandoffMarkdown(baseInput());
     const md2 = generateHandoffMarkdown(baseInput());
     assert.equal(md1, md2);
   });
 
+  // @rnf RNF-04
   it('RNF-04: output stays under 32 KB even with worst-case inputs', () => {
     const bigUncovered = Array.from({ length: 50 }, (_, i) => ({
       id: `RF-${String(i + 1).padStart(2, '0')}`,
@@ -177,5 +183,34 @@ describe('buildHandoffFilename', () => {
   it('collons → dashes in the ISO stamp for filesystem safety', () => {
     const name = buildHandoffFilename(1, '2026:03:28T10:00:00Z');
     assert.match(name, /^HANDOFF-iter-1-2026-03-28T10-00-00Z\.md$/);
+  });
+});
+
+describe('generateHandoffMarkdown — RF-40 uncovered surface section', () => {
+  /**
+   * @rf RF-40
+   * @rnf RNF-09
+   */
+  it('RF-40: lists the surface items that still have no test', () => {
+    const md = generateHandoffMarkdown(
+      baseInput({
+        uncoveredSurface: [
+          { id: 'UC-03-MAIN', kind: 'flow', title: 'Main Flow' },
+          { id: 'OP-STARTPURCHASE-PC1', kind: 'post_condition', title: 'order created' },
+        ],
+      }),
+    );
+    assert.match(md, /## 3\.1 Uncovered Test Surface/);
+    assert.match(md, /UC-03-MAIN \(flow\): Main Flow/);
+    assert.match(md, /OP-STARTPURCHASE-PC1 \(post_condition\): order created/);
+  });
+
+  /**
+   * @rf RF-40
+   * @rnf RNF-10
+   */
+  it('RF-40: omits the section when every surface item is covered', () => {
+    const md = generateHandoffMarkdown(baseInput({ uncoveredSurface: [] }));
+    assert.ok(!md.includes('Uncovered Test Surface'));
   });
 });

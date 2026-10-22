@@ -15,6 +15,9 @@
  * @rnf RNF-ES-01..02
  */
 import assert from 'node:assert/strict';
+import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, it } from 'node:test';
 
 import unifiedProcessExtension from '../index.ts';
@@ -24,20 +27,24 @@ type Handler = (event: any, ctx?: any) => unknown;
 function createMockExtensionAPI() {
   const handlers = new Map<string, Handler>();
   const tools: string[] = [];
+  const definitions = new Map<string, any>();
   const commands: string[] = [];
   const shortcuts: string[] = [];
   const sent: Array<{ text: string; options?: unknown }> = [];
   const entries: Array<{ type: string; value: unknown }> = [];
   const pi = {
     on: (name: string, fn: Handler) => handlers.set(name, fn),
-    registerTool: (def: { name: string }) => tools.push(def.name),
+    registerTool: (def: { name: string }) => {
+      tools.push(def.name);
+      definitions.set(def.name, def);
+    },
     registerCommand: (name: string) => commands.push(name),
     registerShortcut: (keys: string | readonly string[]) =>
       shortcuts.push(...(Array.isArray(keys) ? keys : [keys])),
     appendEntry: (type: string, value: unknown) => entries.push({ type, value }),
     sendUserMessage: (text: string, options?: unknown) => sent.push({ text, options }),
   };
-  return { pi, handlers, tools, commands, shortcuts, sent, entries };
+  return { pi, handlers, tools, definitions, commands, shortcuts, sent, entries };
 }
 
 function createMockContext(overrides: Record<string, unknown> = {}) {
@@ -194,6 +201,48 @@ describe('auto-transition arming — RF-ES-04', () => {
     await handlers.get('agent_end')!({}, ctx);
     assert.equal(sent.length, 0);
     assert.equal(notifications.length, 0, 'disarmed auto-transition must not notify');
+  });
+});
+
+describe('up_test_quality_audit — RF-45 strict mode without requirements', () => {
+  /**
+   * @rf RF-45
+   * @rnf RNF-09
+   */
+  it('RF-45: returns a blocked report instead of throwing', async () => {
+    const { pi, definitions } = createMockExtensionAPI();
+    unifiedProcessExtension(pi as never);
+    const tool = definitions.get('up_test_quality_audit');
+    assert.ok(tool, 'the tool must be registered');
+    const dir = await mkdtemp(join(tmpdir(), 'up-tool-audit-'));
+    const result = await tool.execute('call-1', { mode: 'strict' }, undefined, undefined, {
+      cwd: dir,
+    });
+    assert.match(result.content[0]?.text ?? '', /BLOCKED/);
+    assert.equal(result.details.blocked, true);
+  });
+
+  /**
+   * @rf RF-45
+   * @rnf RNF-10
+   */
+  it('RF-45: report mode still returns the full report', async () => {
+    const { pi, definitions } = createMockExtensionAPI();
+    unifiedProcessExtension(pi as never);
+    const tool = definitions.get('up_test_quality_audit');
+    assert.ok(tool, 'the tool must be registered');
+    const dir = await mkdtemp(join(tmpdir(), 'up-tool-audit-'));
+    await mkdir(join(dir, 'docs', 'up'), { recursive: true });
+    await writeFile(
+      join(dir, 'docs', 'up', '02-requirements.md'),
+      '- **RF-01: alpha requirement**\n',
+      'utf8',
+    );
+    const result = await tool.execute('call-1', { mode: 'report' }, undefined, undefined, {
+      cwd: dir,
+    });
+    assert.equal(result.details.blocked, undefined);
+    assert.match(result.content[0]?.text ?? '', /Audit \(report\)/);
   });
 });
 

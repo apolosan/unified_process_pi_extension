@@ -34,7 +34,8 @@ export interface CoverageReport {
   uncoveredRnf: Requirement[];
 }
 
-const BOLD_BULLET_REGEX = /^\s*[*-]\s+\*\*(RF|RNF)-(\d+)(?:\s*\([^)]+\))?\s*:?\s*([^*]+?)\*\*/;
+const BOLD_TITLE_REGEX = /^\s*[*-]\s+\*\*(RF|RNF)-(\d+)(?:\s*\([^)]+\))?\s*:?\s*([^*\n]+?)\*\*/;
+const BOLD_ID_REGEX = /^\s*[*-]\s+\*\*(RF|RNF)-(\d+)\*\*\s*:?\s*(.+)$/;
 const PLAIN_BULLET_REGEX = /^\s*[*-]\s+(RF|RNF)-(\d+)\s*:?\s+(.+)/;
 const TABLE_SEPARATOR_REGEX = /^\s*\|[\s-]+\|/;
 const TABLE_ROW_REGEX = /^\s*\|\s*(RF|RNF)-(\d+)\s*\|\s*([^|]+?)\s*\|/;
@@ -47,13 +48,27 @@ export function extractRequirements(mdContent: string, sourcePath: string): Requ
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i] ?? '';
 
-    // Bullet patterns first.
-    const bold = line.match(BOLD_BULLET_REGEX);
-    if (bold) {
+    // Bullet patterns first. The bold-id form is tried before the bold-title
+    // form: `**RF-01**` unambiguously closes right after the digits, while the
+    // title-inside-bold form can be mis-parsed as a one-character title.
+    const boldId = line.match(BOLD_ID_REGEX);
+    if (boldId) {
       requirements.push({
-        id: `${bold[1]}-${bold[2]}`,
-        type: (bold[1] as 'RF' | 'RNF') ?? 'RF',
-        title: (bold[3] ?? '').trim(),
+        id: `${boldId[1]}-${boldId[2]}`,
+        type: (boldId[1] as 'RF' | 'RNF') ?? 'RF',
+        title: (boldId[3] ?? '').trim(),
+        file: sourcePath,
+        line: i + 1,
+      });
+      continue;
+    }
+
+    const boldTitle = line.match(BOLD_TITLE_REGEX);
+    if (boldTitle) {
+      requirements.push({
+        id: `${boldTitle[1]}-${boldTitle[2]}`,
+        type: (boldTitle[1] as 'RF' | 'RNF') ?? 'RF',
+        title: (boldTitle[3] ?? '').trim(),
         file: sourcePath,
         line: i + 1,
       });
@@ -107,8 +122,8 @@ export function extractTestTraceability(testContent: string, filePath: string): 
     file: filePath,
     line: block.startLine,
     testName: block.name,
-    rf: block.rf ? [block.rf] : [],
-    rnf: block.rnf ? [block.rnf] : [],
+    rf: block.rfIds,
+    rnf: block.rnfIds,
   }));
 }
 

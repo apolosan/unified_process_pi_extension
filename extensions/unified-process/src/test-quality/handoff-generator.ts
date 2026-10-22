@@ -32,8 +32,11 @@ export interface HandoffInput {
     mediocre: number;
     uncoveredRf: number;
     uncoveredRnf: number;
+    uncoveredSurface?: number;
   };
   uncovered: Requirement[];
+  /** Surface items still without a test (use case flows, contracts, operations). */
+  uncoveredSurface?: { id: string; kind: string; title: string }[];
   outputDir: string;
   timestamp: string;
   /** Optional git branch / session id included as recovery pointers. */
@@ -53,6 +56,7 @@ export function generateHandoffMarkdown(input: HandoffInput): string {
   sections.push(buildSystemIdentity(input));
   sections.push(buildCompletionTable(input));
   sections.push(buildUncoveredSection(input.uncovered));
+  sections.push(buildUncoveredSurfaceSection(input.uncoveredSurface));
   sections.push(buildSmokeSection(input.smokeLogEntries));
   sections.push(buildResumeInstructions(input));
   sections.push(buildRecoveryPointers(input.recoveryPointers));
@@ -118,6 +122,21 @@ function buildUncoveredSection(uncovered: Requirement[]): string {
   ];
   for (const req of uncovered) {
     lines.push(`- ${req.id} (${req.type}): ${req.title}`);
+  }
+  return lines.join('\n');
+}
+
+function buildUncoveredSurfaceSection(
+  uncovered: { id: string; kind: string; title: string }[] | undefined,
+): string {
+  if (!uncovered || uncovered.length === 0) return '';
+  const lines: string[] = [
+    '## 3.1 Uncovered Test Surface',
+    `Total uncovered surface items: ${uncovered.length}`,
+    '',
+  ];
+  for (const item of uncovered) {
+    lines.push(`- ${item.id} (${item.kind}): ${item.title}`);
   }
   return lines.join('\n');
 }

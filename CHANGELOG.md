@@ -2,6 +2,26 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.3.0] - 2026-10-22
+
+### Added
+- **Surface-coverage enforcement (new axis)**: `test-quality/surface-coverage.ts` derives the expected test surface from the UP artifacts — use cases and their flows (`UC-03-MAIN`, `UC-03-VARIANT-2A`, `UC-03-EXCEPTION-3A`), contracts with their post-conditions and exceptions (`OP-STARTPURCHASE`, `…-PC1`, `…-EX1`) and the system-operations list — and requires every item to be claimed by a non-mediocre test through the new `@surface` marker. The report exposes `expectedMinCases` (one case per surface item) next to the delivered test count.
+- **Plan-driven type matrix**: `docs/up/10-tdd-plan.md` §3 (Test Taxonomy) becomes the authority for the mandatory test types, §1.3 gaps with a *justified exclusion* exempt the surface ids they mention, and `planned vs delivered` is reported per type as a shortfall. The new `@type` marker declares the slot of each test.
+- **New report surface** in `up_test_quality_audit` and `/up-audit`: surface items, uncovered items, exempted items, declared types and the planned-vs-delivered shortfall.
+- **Handoff** now lists the surface items that still have no test (`## 3.1 Uncovered Test Surface`).
+- **Marker ranges**: a test may declare several requirement ids, including ranges (`@rf RF-09..12`).
+
+### Fixed
+- **Requirement id parsing**: `- **RF-01**: title` no longer yields a corrupted id (`RF-0`); the `- **RF-01: title**` form keeps working. Strict mode can now reach a passing verdict against the project manifest.
+- **Fixture false positives**: the scanner masks string literals and comments (offsets preserved), so a test head embedded in a template literal or a commented-out test is no longer counted as a real test — the project's own battery went from 18 false P1 issues to 0.
+- **`up_test_quality_audit` never throws**: in strict mode without a parseable requirements document it answers with a blocked report (`passed: no` + reason) instead of an exception.
+- **`scope` parameter**: `project` (default) or `extensions` now actually restricts the scan to `cwd/extensions`.
+
+## [1.2.6] - 2026-07-31
+
+### Changed
+- Version bump to 1.2.6 across all tracked files (package.json, README, CHANGELOG, agents-md-manifest.json, package-lock.json). Code source unchanged.
+
 ## [1.2.5] - 2026-07-30
 
 ### Tests
