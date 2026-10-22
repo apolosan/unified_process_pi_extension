@@ -243,6 +243,31 @@ Recommended npm package name:
 Recommended GitHub repository:
 - `apolosan/unified_process_pi_extension`
 
+### Release script
+
+```bash
+NPM_TOKEN=<automation token with write access to the @apolosan scope> \
+  node scripts/publish-release.mjs
+```
+
+`scripts/publish-release.mjs` (also available as `npm run release:publish`) refuses to
+publish unless every pre-flight condition holds: the version in `package.json` is a
+plain semver, the tracked tree matches `HEAD` (override with `--allow-dirty`), the
+target version is not already on the registry, `npm run check` passes, and the token
+authenticates. The token is read from `$NPM_TOKEN`, never printed, and kept only in a
+temporary `0600` npmrc that is deleted when the process exits. After a successful
+publish the script re-reads the registry to confirm the new version is live.
+
+The script publishes the **tarball** from a neutral working directory: npm gives the
+project `.npmrc` (the one next to `package.json`) a higher precedence than any user
+config, so a stale `//registry…:_authToken` line there would otherwise silently
+shadow `$NPM_TOKEN`. When the repository has such a line the script says so and
+ignores it on purpose.
+
+Useful flags: `--dry-run` (validate and build the tarball without publishing, no token
+needed), `--otp <code>` (two-factor code), `--registry <url>` (alternative registry),
+`--skip-check`, `--provenance` (only honoured by GitHub Actions / GitLab CI).
+
 ## License
 
 MIT
